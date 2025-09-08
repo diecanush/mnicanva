@@ -1,6 +1,26 @@
 (() => {
   const $ = (s)=>document.querySelector(s);
 
+  // ===== Dialog support detection =====
+  function supportsDialog(){ return 'HTMLDialogElement' in window; }
+  const hasDialog = supportsDialog();
+  function openModal(el){ hasDialog ? el.showModal() : el.classList.add('open'); }
+  function closeModal(el){ hasDialog ? el.close() : el.classList.remove('open'); }
+  if(!hasDialog){
+    const dlg = document.getElementById('cropModal');
+    if(dlg){
+      const wrap = document.createElement('div');
+      wrap.id = dlg.id;
+      wrap.className = 'modal-fallback';
+      const content = document.createElement('div');
+      content.className = 'modal-content';
+      content.innerHTML = dlg.innerHTML;
+      wrap.appendChild(content);
+      dlg.replaceWith(wrap);
+      document.body.classList.add('no-dialog');
+    }
+  }
+
   // ====== Responsive desktop bar ======
   const mq = window.matchMedia('(min-width: 768px)');
   function toggleDeskBar(e){ document.getElementById('deskBar').style.display = e.matches ? 'flex' : 'none'; }
@@ -510,11 +530,11 @@
     const imgEl = document.getElementById('cropperImage');
     const orig = t.__origSrc || t._originalElement?.src || t.getElement?.().src || t.toDataURL({format:'png'});
     imgEl.src = orig;
-    const dlg = document.getElementById('cropModal'); dlg.showModal();
+    const dlg = document.getElementById('cropModal'); openModal(dlg);
     if (cropper) { cropper.destroy(); cropper = null; }
     cropper = new Cropper(imgEl, { viewMode:1, background:false, autoCrop:true, checkOrientation:false, responsive:true, dragMode:'move', autoCropArea:0.9 });
   }
-  document.getElementById('cmClose').onclick = () => { if (cropper) { cropper.destroy(); cropper = null; } document.getElementById('cropModal').close(); };
+  document.getElementById('cmClose').onclick = () => { if (cropper) { cropper.destroy(); cropper = null; } closeModal(document.getElementById('cropModal')); };
   document.getElementById('cmZoomIn').onclick  = ()=> cropper && cropper.zoom( 0.1);
   document.getElementById('cmZoomOut').onclick = ()=> cropper && cropper.zoom(-0.1);
   document.getElementById('cmRotate').onclick  = ()=> cropper && cropper.rotate(90);
@@ -539,7 +559,7 @@
       if(idx >= 0){ canvas.insertAt(img, idx, true); } else { canvas.add(img); }
       canvas.setActiveObject(img); canvas.requestRenderAll();
     }, { crossOrigin:'anonymous' });
-    cropTarget = null; cropper.destroy(); cropper = null; document.getElementById('cropModal').close();
+    cropTarget = null; cropper.destroy(); cropper = null; closeModal(document.getElementById('cropModal'));
   };
 
   // ===== Feather helpers =====
