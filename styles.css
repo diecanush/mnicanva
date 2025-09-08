@@ -85,8 +85,9 @@ label.chk{ gap:6px; }
 @media (max-width: 767px){
   #app{
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto 1fr auto;
   }
+  #viewport{ min-height: 0; }
   /* Antes estaba: #leftPanel, #rightPanel { display:none } */
   /* Ahora solo se ocultan cuando el JS ya los movió al dock */
   body.mobile-docked #app > #leftPanel,
