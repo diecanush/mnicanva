@@ -1,6 +1,12 @@
 (() => {
   const $ = (s)=>document.querySelector(s);
 
+  const setHeaderHeight = () => {
+    const el = document.getElementById('deskBar');
+    document.documentElement.style.setProperty('--header-h', `${el?.offsetHeight || 0}px`);
+  };
+  window.addEventListener('resize', setHeaderHeight);
+
   // ===== Dialog support detection =====
   function supportsDialog(){ return 'HTMLDialogElement' in window; }
   const hasDialog = supportsDialog();
@@ -23,7 +29,10 @@
 
   // ====== Responsive desktop bar ======
   const mq = window.matchMedia('(min-width: 768px)');
-  function toggleDeskBar(e){ document.getElementById('deskBar').style.display = e.matches ? 'flex' : 'none'; }
+  function toggleDeskBar(e){
+    document.getElementById('deskBar').style.display = e.matches ? 'flex' : 'none';
+    setHeaderHeight();
+  }
   toggleDeskBar(mq); mq.addEventListener('change', toggleDeskBar);
 
   function syncDrawers(){
