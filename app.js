@@ -387,7 +387,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const outer = document.getElementById('viewport');
     if(!outer||!canvas) return;
     const ow = outer.clientWidth;
-    const oh = outer.clientHeight;
+    const oh = Math.min(outer.clientHeight, window.innerHeight);
     if(ow <= 0 || oh <= 0){
       requestAnimationFrame(()=>fitToViewport(scrollTop));
       return;
