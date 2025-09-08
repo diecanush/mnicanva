@@ -37,7 +37,7 @@
     document.getElementById('deskBar').style.display = e.matches ? 'flex' : 'none';
     setHeaderHeight();
   }
-  toggleDeskBar(mq); mq.addEventListener('change', toggleDeskBar);
+  mq.addEventListener('change', toggleDeskBar);
 
   function syncDrawers(){
     const isDesktop = window.matchMedia('(min-width: 768px)').matches;
@@ -1038,6 +1038,7 @@
     buildFontPicker();
 
     initCanvas();
+    toggleDeskBar(mq);
 
     // Formato
     document.getElementById('selAspect').addEventListener('change',(e)=> setAspect(e.target.value));
