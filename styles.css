@@ -89,6 +89,10 @@ label.chk{ gap:6px; }
     grid-template-rows: auto 1fr auto;
   }
   #viewport{ min-height: 0; }
+  #mobileDock{
+    max-height:50dvh;
+    overflow:auto;
+  }
   body.mobile-docked #mobileDock{ display:block; grid-row:3; }
   /* Antes estaba: #leftPanel, #rightPanel { display:none } */
   /* Ahora solo se ocultan cuando el JS ya los movió al dock */
