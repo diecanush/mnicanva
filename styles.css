@@ -88,8 +88,10 @@ label.chk{ gap:6px; }
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto;
   }
-  #viewport{ min-height: 0; }
-  #mobileDock{
+  #leftPanel    { grid-row: 1; }
+  #viewport     { grid-row: 2; min-height: 0; }
+  #mobileDock   {
+    grid-row: 3;
     max-height:50dvh;
     overflow:auto;
   }
