@@ -1,3 +1,5 @@
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 (() => {
   const $ = (s)=>document.querySelector(s);
 
@@ -1162,7 +1164,12 @@
     } else {
       window.addEventListener('resize', ()=>{ if(autoCenter) fitToViewport(); });
     }
-    requestAnimationFrame(()=> requestAnimationFrame(()=> { autoCenter=true; fitToViewport(); }));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        autoCenter = true;
+        fitToViewport(true); // asegura scroll al tope
+      })
+    );
 
     // Dock móvil
     handleResponsivePanels();
