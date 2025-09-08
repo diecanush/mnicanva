@@ -88,8 +88,8 @@ label.chk{ gap:6px; }
   }
   /* Antes estaba: #leftPanel, #rightPanel { display:none } */
   /* Ahora solo se ocultan cuando el JS ya los movió al dock */
-  body.mobile-docked #leftPanel,
-  body.mobile-docked #rightPanel { display: none; }
+  body.mobile-docked #app > #leftPanel,
+  body.mobile-docked #app > #rightPanel { display: none; }
 }
 
 

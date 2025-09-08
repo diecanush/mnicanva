@@ -957,6 +957,7 @@
     dock.querySelector('#md-help').appendChild(right);
 
     switchMobileTab('tools');
+    document.body.classList.add('mobile-docked');
     isMobileUI = true;
   }
   function exitMobileDock(){
@@ -967,6 +968,7 @@
     if (leftPH && left)  leftPH.parentNode.insertBefore(left, leftPH);
     if (rightPH && right) rightPH.parentNode.insertBefore(right, rightPH);
     if (dock) dock.style.display = 'none';
+    document.body.classList.remove('mobile-docked');
     isMobileUI = false;
   }
   function handleResponsivePanels(){
