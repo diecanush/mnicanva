@@ -74,9 +74,11 @@
     "16:9":  { w:1920, h:1080 },
     // ISO 216 A4 (1:√2) base 10px/mm
     "A4P":   { w:2100, h:2970 }, // 210x297 mm
-    "A4L":   { w:2970, h:2100 }  // 297x210 mm
+    "A4L":   { w:2970, h:2100 }, // 297x210 mm
+    "A5P":   { w:1480, h:2100 },
+    "A5L":   { w:2100, h:1480 }
   };
-  let baseW=1080, baseH=1080;
+  let baseW=1480, baseH=2100;
 
   let autoCenter = true;
   let handMode   = false;
