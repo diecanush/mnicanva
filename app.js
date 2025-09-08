@@ -4,6 +4,7 @@
   const setHeaderHeight = () => {
     const el = document.getElementById('deskBar');
     document.documentElement.style.setProperty('--header-h', `${el?.offsetHeight || 0}px`);
+    fitToViewport();
   };
   window.addEventListener('resize', setHeaderHeight);
 
@@ -1028,6 +1029,7 @@
 
   // ===== DOMContentLoaded =====
   window.addEventListener('DOMContentLoaded', async ()=>{
+    setHeaderHeight();
     injectGoogleFonts();
     populateFontSelect();
     buildFontPicker();
