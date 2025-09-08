@@ -1,0 +1,524 @@
+:root{
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+/* Base de botones (global) */
+button {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+
+*{ box-sizing: border-box; }
+html,body{ height:100%; }
+body{
+  margin:0; font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text); background: var(--bg);
+}
+
+/* Top bar */
+#deskBar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; border-bottom:1px solid var(--border); background:var(--panel); gap:12px;
+}
+#deskBar .left, #deskBar .right{ display:flex; align-items:center; gap:8px; }
+#deskBar .center{ display:flex; align-items:center; gap:8px; color:var(--muted); }
+#deskBar .sep{ opacity:.5; }
+#deskBar button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; cursor:pointer; }
+
+/* Layout principal */
+#app{
+  display:grid; grid-template-columns: 280px 1fr 300px; grid-template-rows: 1fr;
+  gap:12px; padding:12px; height: calc(100vh - 56px);
+}
+
+/* Paneles */
+.panel{
+  background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  display:flex; flex-direction:column; min-height:0;
+}
+.panel-head{ display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); }
+.panel-head h2{ margin:0; font-size:16px; }
+.panel-head .close{ margin-left:auto; }
+
+.panel-body{ padding:12px; overflow:auto; }
+.group{ border:1px dashed var(--border); border-radius:10px; padding:10px; margin-bottom:12px; }
+.group h3{ margin:0 0 8px; font-size:14px; color:var(--muted); }
+.subgroup{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); }
+
+.hidden{ display:none; }
+
+label{ display:flex; gap:8px; align-items:center; margin:6px 0; }
+label input, label select{ flex:1; padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+label.chk{ gap:6px; }
+.row{ display:flex; gap:8px; align-items:center; }
+.row button{ flex:1; }
+.aligns .btnAlign{ flex:1; }
+
+/* Viewport */
+#viewport{
+  background: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+  border:1px solid var(--border); border-radius:12px; position:relative; min-height: 300px;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+#stage{ outline:none; }
+
+/* Zoom HUD */
+.hud button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; cursor:pointer; }
+#btnHandHUD.active{ background:#e5e7eb; }
+
+/* Drawer behavior (desktop) */
+@media (min-width: 768px){
+  #leftPanel, #rightPanel{ display:flex; }
+}
+
+/* Mobile: columnas colapsan, dock debajo del lienzo */
+@media (max-width: 767px){
+  #app{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  /* Antes estaba: #leftPanel, #rightPanel { display:none } */
+  /* Ahora solo se ocultan cuando el JS ya los movió al dock */
+  body.mobile-docked #leftPanel,
+  body.mobile-docked #rightPanel { display: none; }
+}
+
+
+/* ===== Font Picker (dropdown custom) ===== */
+.font-picker { position: relative; width: 100%; max-width: 320px; }
+.fp-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff;
+  cursor: pointer; user-select: none; min-height: 40px;
+}
+.fp-trigger .fp-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-trigger .fp-caret { margin-left: 8px; font-size: 12px; opacity: .7; }
+
+.fp-panel {
+  position: absolute; z-index: 50; top: calc(100% + 6px); left: 0; right: 0;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  display: none;
+}
+.fp-panel.open { display: block; }
+
+.fp-search { padding: 8px 10px; border-bottom: 1px solid #f3f4f6; }
+.fp-search input { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; }
+
+.fp-list { max-height: 260px; overflow: auto; padding: 6px; }
+.fp-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.fp-item:hover, .fp-item[aria-selected="true"] { background: #f3f4f6; }
+.fp-name { font-size: 14px; min-width: 130px; color: #111827; }
+.fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Mobile Dock */
+#mobileDock { margin: 8px 12px 12px; }
+.md-tabs { display: flex; gap: 8px; }
+.md-tabs button {
+  flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer;
+}
+.md-tabs button.active { background: #e5e7eb; }
+.md-panels { margin-top: 8px; }
+.md-panel { display: none; }
+.md-panel.active { display: block; }
+
+/* Cropper dialog */
+#cropModal::backdrop{ background: rgba(0,0,0,.3); }
+#cropModal{ border:none; padding:0; max-width:min(95vw, 960px); width:95vw; }
+.cropper-wrap{ max-height:65vh; overflow:auto; padding:12px; }
+.cropper-wrap img{ max-width:100%; display:block; margin:0 auto; }
+.cropper-toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-top:1px solid var(--border); }
+.cropper-toolbar .grow{ flex:1; }
+.cropper-toolbar button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; }
+.cropper-toolbar .primary{ background:#111827; color:#fff; border-color:#111827; }
+
+/* Dark mode */
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0b1220; --panel:#0f172a; --border:#243244; --text:#e5e7eb; --muted:#93a4b6; }
+  #viewport{ background: #0f172a; }
+  label input, label select, #deskBar button, .row button, .cropper-toolbar button{ background:#0b1220; color:var(--text); border-color:var(--border); }
+  .fp-trigger, .fp-panel, .fp-search input, .md-tabs button{ background:#0b1220; border-color:#243244; color:var(--text); }
+  .fp-item:hover, .fp-item[aria-selected="true"], .md-tabs button.active { background:#101826; }
+}
+
+/* Forzar tema claro sin depender del SO (override final) */
+:root{
+  --bg:#f8fafc; --panel:#ffffff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b;
+}
+#viewport{
+  background: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+}
+
+/* HOTFIX 1: forzar botones claros y texto legible */
+button,
+#deskBar button,
+.row button,
+.cropper-toolbar button,
+.md-tabs button {
+  background:#fff !important;
+  color:#0f172a !important;       /* texto oscuro legible */
+  border-color:#e5e7eb !important;
+}
+
+/* HOTFIX 2: asegurar que los paneles se vean en móvil aunque el JS no mueva nada todavía */
+@media (max-width: 767px){
+  #leftPanel,
+  #rightPanel {
+    display:block !important;     /* visibles por defecto */
+  }
+  /* si preferís ocultar el panel de Ayuda en mobile hasta que el dock funcione, descomentá esta línea: */
+  /* #rightPanel { display:none !important; } */
+}
+
+/* (opcional) Desactivar el bloque oscuro heredado que pintaba botones de negro */
+@media (prefers-color-scheme: dark){
+  /* anula solo la parte que ensombrecía inputs/botones */
+  label input, label select, #deskBar button, .row button, .cropper-toolbar button {
+    background:#fff !important;
+    color:#0f172a !important;
+    border-color:#e5e7eb !important;
+  }
+}
+
+/* === Font picker: forzar tema claro y texto legible === */
+.font-picker .fp-trigger,
+.font-picker .fp-panel,
+.font-picker .fp-search input {
+  background: #fff !important;
+  color: #0f172a !important;
+  border-color: #e5e7eb !important;
+}
+.font-picker .fp-item:hover,
+.font-picker .fp-item[aria-selected="true"] {
+  background: #f3f4f6 !important;
+}
+.font-picker .fp-name { color:#111827 !important; }
+.font-picker .fp-preview { color:#374151 !important; }
+
+/* si estabas viendo el dock móvil oculto por el inline style */
+body.mobile-docked #mobileDock { display:block !important; }
+
+/* === Paneles compactos y responsivos =================================== */
+:root{
+  --panel-w: 320px;          /* ancho sugerido del panel lateral */
+  --gap: 10px;
+  --gap-sm: 6px;
+  --border: #e5e7eb;
+  --panel-bg: #fff;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+/* Paneles laterales */
+#leftPanel,
+#rightPanel{
+  width: var(--panel-w);
+  max-width: 100%;
+  background: var(--panel-bg);
+  color: var(--text);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;              /* No más scroll horizontal */
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* Evitar que nada desborde el ancho del panel */
+#leftPanel * ,
+#rightPanel * {
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Filas/agrupaciones: grid que colapsa a 1 columna en angosto */
+.row,
+.form-row,
+.tool-row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+@media (max-width: 380px){
+  .row,
+  .form-row,
+  .tool-row{ grid-template-columns: 1fr; }
+}
+
+/* Etiquetas + controles verticales para aprovechar ancho */
+.field,
+.form-field{
+  display: grid;
+  gap: var(--gap-sm);
+}
+.field > label,
+.form-field > label{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Inputs al 100% del ancho disponible */
+input[type="text"],
+input[type="number"],
+input[type="color"],
+input[type="file"],
+select,
+.font-picker .fp-trigger{
+  width: 100%;
+  display: block;
+}
+
+/* Botoneras ajustables (envolver y sin desbordes) */
+.btn-group,
+.tools-buttons,
+.layer-buttons{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-sm);
+}
+.btn-group > *{ flex: 1 1 auto; }
+
+/* Selectores/inputs legibles (tema claro forzado) */
+select,
+input,
+.font-picker .fp-trigger,
+.font-picker .fp-panel,
+.font-picker .fp-search input{
+  background:#fff !important;
+  color:#0f172a !important;
+  border:1px solid var(--border) !important;
+  border-radius:8px;
+  padding:8px;
+}
+
+/* El panel del font-picker no se sale del ancho */
+.font-picker{ width: 100%; }
+.font-picker .fp-panel{
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 6px;
+  width: 100%;
+}
+.font-picker .fp-list .fp-item{
+  display:flex; justify-content:space-between; align-items:center;
+  gap:8px; padding:6px 8px; border-radius:6px;
+}
+.font-picker .fp-item:hover,
+.font-picker .fp-item[aria-selected="true"]{ background:#f3f4f6 !important; }
+
+/* Botones base claros (por si algún tema oscuro pisa estilos) */
+button{
+  background:#fff !important;
+  color:#0f172a !important;
+  border:1px solid var(--border) !important;
+  border-radius:8px; padding:8px 12px; cursor:pointer;
+}
+button:disabled{ opacity:.6; cursor:not-allowed; }
+
+/* === Acordeón con <details> ============================================ */
+/* Si tus secciones son <details class="tool"> con <summary> */
+#leftPanel details.tool,
+#rightPanel details.tool{
+  border:1px solid var(--border);
+  border-radius:10px;
+  margin-bottom: var(--gap);
+  background:#fff;
+  overflow: clip;
+}
+#leftPanel details.tool > summary,
+#rightPanel details.tool > summary{
+  list-style:none; cursor:pointer;
+  padding:10px 12px; font-weight:600;
+  display:flex; align-items:center; justify-content:space-between;
+  position:relative;
+}
+#leftPanel details.tool > summary::marker,
+#rightPanel details.tool > summary::marker{ content: ""; }
+
+#leftPanel details.tool > summary::after,
+#rightPanel details.tool > summary::after{
+  content:"▾"; font-size:12px; color:var(--muted);
+  transition: transform .2s ease;
+}
+#leftPanel details.tool[open] > summary::after,
+#rightPanel details.tool[open] > summary::after{
+  transform: rotate(-180deg);
+}
+
+#leftPanel details.tool > .tool-body,
+#rightPanel details.tool > .tool-body{
+  padding:10px 12px; border-top:1px solid var(--border);
+  display: grid; gap: var(--gap);
+}
+
+/* Transición suave de apertura (opcional, compatible en navegadores modernos) */
+@supports (animation-timeline: scroll()){
+  /* lo dejo sin animar por compatibilidad; si querés, te paso una variante con max-height animada */
+}
+
+/* === Acordeón con clases .section (si NO usás <details>) ================ */
+/* Si tus grupos son <div class="section"> con .section-title y .section-body */
+#leftPanel .section,
+#rightPanel .section{
+  border:1px solid var(--border);
+  border-radius:10px;
+  margin-bottom: var(--gap);
+  background:#fff;
+}
+.section-title{
+  padding:10px 12px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.section-title::after{
+  content:"▾"; font-size:12px; color:var(--muted); transition: transform .2s ease;
+}
+.section.open .section-title::after{ transform: rotate(-180deg); }
+
+.section-body{
+  padding:10px 12px; border-top:1px solid var(--border);
+  display:none;        /* cerrada por defecto */
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+}
+.section.open .section-body{ display:grid; }
+
+/* En pantallas angostas, cuerpo a 1 columna */
+@media (max-width: 380px){
+  .section-body{ grid-template-columns: 1fr; }
+}
+
+/* === Móvil: dock con pestañas bajo el lienzo =========================== */
+#mobileDock{
+  background:#fff; border-top:1px solid var(--border);
+  padding:8px; display:none; /* lo muestra el JS cuando hace dock */
+}
+.md-tabs{
+  display:flex; gap:6px; margin-bottom:6px;
+}
+.md-tab{
+  flex:1 1 0; padding:8px; text-align:center;
+}
+.md-tab.active{ background:#f3f4f6 !important; }
+.md-panels .md-panel{ display:none; }
+.md-panels .md-panel.active{ display:block; }
+
+/* Evitar barras de desplazamiento innecesarias en los paneles */
+#leftPanel::-webkit-scrollbar,
+#rightPanel::-webkit-scrollbar{ width: 10px; }
+#leftPanel::-webkit-scrollbar-thumb,
+#rightPanel::-webkit-scrollbar-thumb{ background:#d1d5db; border-radius:10px; }
+
+
+/* ===== Panel más cómodo y sin overflow ===== */
+:root{
+  --panel-w: 340px;     /* ancho base del panel */
+  --gap: 10px;
+  --gap-sm: 6px;
+  --border: #e5e7eb;
+  --panel-bg: #fff;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+@media (min-width: 1280px){
+  :root{ --panel-w: 360px; }
+}
+
+.panel{
+  width: var(--panel-w);
+  max-width: 100%;
+  background: var(--panel-bg);
+  color: var(--text);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;   /* clave: nada se sale */
+}
+
+.panel-body{ padding: 10px; }
+
+/* Todo dentro del panel respeta el ancho disponible */
+#leftPanel *, #rightPanel *{
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* ===== Grillas/filas responsivas ===== */
+.row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+@media (max-width: 380px){
+  .row{ grid-template-columns: 1fr; }
+}
+
+/* Etiqueta arriba, control abajo, para no “comerse” el ancho */
+label{ display: grid; gap: var(--gap-sm); font-size: 12px; color: var(--muted); }
+label > input, label > select{ margin-top: 2px; }
+
+/* Controles al 100% */
+input[type="text"], input[type="number"], input[type="color"], input[type="file"],
+select, #fontPicker, #fontPicker .fp-trigger{ width: 100%; }
+
+/* Botones que envuelven si no entra todo */
+.row .btn, .row button{
+  width: 100%;
+}
+.btnAlign{ min-width: 0; }
+
+/* Forzar tema claro para legibilidad */
+select, input, button,
+#fontPicker .fp-trigger, #fontPicker .fp-panel, #fontPicker .fp-search input{
+  background:#fff !important; color:#0f172a !important; border:1px solid var(--border) !important;
+  border-radius:8px; padding:8px;
+}
+
+/* ===== Acordeón basado en <h3> dentro de .group ===== */
+.group{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding: 8px 10px;
+  margin-bottom: var(--gap);
+  background:#fff;
+}
+.group > h3{
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.group > h3::after{
+  content:"▾"; font-size:12px; color: var(--muted); transition: transform .2s ease;
+}
+.group[data-collapsed="true"] > h3::after{ transform: rotate(-180deg); }
+
+/* Al contraer: oculto todo lo que no sea el h3 */
+.group[data-collapsed="true"] > *:not(h3){ display: none !important; }
+
+
+
+/* Hints de impresión a ancho completo del panel */
+#printHints{
+  background: #fafafa;
+  border: 1px dashed #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  word-break: break-word;
+  /* Si alguna vez está dentro de una grid, que ocupe ambas columnas: */
+  grid-column: 1 / -1;
+}
+#printHints strong{ font-weight: 700; }
+
+

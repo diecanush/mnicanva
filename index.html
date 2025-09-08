@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini-Canva</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Cropper CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+</head>
+<body>
+  <!-- Barra superior (desktop) -->
+  <header id="deskBar">
+    <div class="left">
+      <button id="btnOpenTools" type="button">☰ Herramientas</button>
+      <button id="btnOpenHelp" type="button">❔ Ayuda</button>
+    </div>
+    <div class="center">
+      <span id="designInfo">Lienzo: —</span>
+      <span class="sep">·</span>
+      <span id="selInfo">Selección: —</span>
+    </div>
+    <div class="right hud">
+      <button id="btnZoomOutHUD" title="Zoom -">−</button>
+      <span id="zoomLabel">100%</span>
+      <button id="btnZoomInHUD" title="Zoom +">+</button>
+      <button id="btnZoomResetHUD" title="Zoom 100%">1:1</button>
+      <button id="btnZoomFitHUD" title="Ajustar a pantalla">Fit</button>
+      <button id="btnHandHUD" title="Mano para mover">✋</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- Panel izquierdo (herramientas) -->
+    <aside id="leftPanel" class="panel">
+      <div class="panel-head">
+        <h2>Herramientas</h2>
+        <button id="btnCloseTools" class="close">✕</button>
+      </div>
+
+      <div class="panel-body">
+        <section class="group">
+          <h3>Formato del lienzo</h3>
+          <label>Proporción
+            <select id="selAspect">
+              <option value="1:1">1:1</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+              <option value="9:16">9:16</option>
+              <option value="16:9">16:9</option>
+              <option value="A4P">A4 (vertical)</option>
+              <option value="A4L">A4 (horizontal)</option>
+            </select>
+          </label>
+          <label>Fondo <input id="inpBg" type="color" value="#ffffff" /></label>
+          <div class="row">
+            <button id="btnNew" type="button">Nuevo diseño</button>
+            <label class="chk"><input type="checkbox" id="chkGuides" checked /> Guías</label>
+          </div>
+        </section>
+
+        <section class="group">
+          <h3>Texto</h3>
+
+          <!-- Select clásico (lo escondemos, queda como espejo) -->
+          <label class="hidden">Tipografía
+            <select id="selFont">
+              <option value="Inter">Inter</option>
+            </select>
+          </label>
+
+          <!-- Dropdown custom con preview -->
+          <div id="fontPicker"></div>
+
+          <div class="row">
+            <label>Tamaño <input id="inpSize" type="number" value="64" min="8" step="1" /></label>
+            <label>Color <input id="inpColor" type="color" value="#111827" /></label>
+          </div>
+          <div class="row">
+            <label>Borde <input id="inpStrokeColor" type="color" value="#ffffff" /></label>
+            <label>Grosor <input id="inpStrokeWidth" type="number" value="0" min="0" step="1" /></label>
+          </div>
+
+          <div class="row aligns">
+            <button class="btnAlign active" data-align="left" id="alignTextLeft">⟸</button>
+            <button class="btnAlign" data-align="center" id="alignTextCenter">⇔</button>
+            <button class="btnAlign" data-align="right" id="alignTextRight">⟹</button>
+          </div>
+
+          <div class="row">
+            <button id="btnText" type="button">Añadir texto</button>
+            <button id="btnApplyText" type="button">Aplicar</button>
+          </div>
+        </section>
+
+        <section class="group">
+          <h3>Imágenes &amp; recortes</h3>
+          <input id="fileImg" type="file" accept="image/*" />
+          <div class="row">
+            <button id="btnStartCrop" type="button">Recortar</button>
+          </div>
+
+          <div class="row">
+            <label>Feather (px)
+              <input id="featherPx" type="range" min="0" max="200" value="40" />
+            </label>
+            <span id="featherVal">40 px</span>
+          </div>
+          <div class="row">
+            <label>Forma
+              <select id="featherShape">
+                <option value="rect">Rectangular</option>
+                <option value="circle">Circular</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <button id="btnApplyFeather" type="button">Aplicar feather</button>
+            <button id="btnRemoveFeather" type="button">Quitar feather</button>
+          </div>
+        </section>
+
+        <section class="group">
+          <h3>Recuadro</h3>
+          <div class="row">
+            <button id="btnRect" type="button">Insertar recuadro</button>
+          </div>
+          <div class="row">
+            <label>Relleno <input id="shapeFill" type="color" value="#ffffff" /></label>
+            <label>Borde <input id="shapeStrokeColor" type="color" value="#111827" /></label>
+          </div>
+          <div class="row">
+            <label>Grosor <input id="shapeStrokeWidth" type="number" step="0.5" min="0" value="2" /></label>
+            <label>Radio <input id="shapeCorner" type="number" step="1" min="0" value="12" /></label>
+          </div>
+          <div class="row">
+            <button id="btnApplyShape" type="button">Aplicar al seleccionado</button>
+          </div>
+        </section>
+
+        <section class="group">
+          <h3>Capas</h3>
+          <div class="row">
+            <button id="btnFront">Al frente</button>
+            <button id="btnFwd">Adelante</button>
+            <button id="btnBwd">Atrás</button>
+            <button id="btnBack">Al fondo</button>
+          </div>
+          <div class="row">
+            <button id="btnDup">Duplicar</button>
+            <button id="btnDel">Eliminar</button>
+          </div>
+        </section>
+
+        <section class="group">
+          <h3>Alinear en lienzo</h3>
+          <div class="row">
+            <button id="alignLeft">Izquierda</button>
+            <button id="alignCenterH">Centro H</button>
+            <button id="alignRight">Derecha</button>
+          </div>
+          <div class="row">
+            <button id="alignTop">Arriba</button>
+            <button id="alignCenterV">Centro V</button>
+            <button id="alignBottom">Abajo</button>
+          </div>
+        </section>
+
+        <section class="group">
+          <h3>QR</h3>
+          <label>WhatsApp (tel. internacional sin +)
+            <input id="waPhone" type="text" placeholder="5492901..." />
+          </label>
+          <label>Mensaje
+            <input id="waMsg" type="text" placeholder="Texto opcional..." />
+          </label>
+          <button id="btnMakeWA" type="button">QR WhatsApp</button>
+          <label>URL
+            <input id="inURL" type="url" placeholder="https://..." />
+          </label>
+          <button id="btnMakeURL" type="button">QR URL</button>
+        </section>
+
+        <section class="group">
+          <h3>Exportar / imprimir</h3>
+          <div class="row">
+            <label>Escala
+              <select id="selScale">
+                <option value="1">1×</option>
+                <option value="2" selected>2×</option>
+                <option value="3">3×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+            <label class="chk"><input type="checkbox" id="chkMono" /> Blanco y negro</label>
+          </div>
+
+          <div class="subgroup">
+            <h4>Imprimir múltiple</h4>
+            <div class="row">
+              <label>Tamaño
+                <select id="selPage">
+                  <option value="a4" selected>A4</option>
+                  <option value="letter">Letter</option>
+                  <option value="legal">Legal</option>
+                </select>
+              </label>
+              <label>Margen (mm)
+                <input id="inpMargin" type="number" step="1" min="0" value="0" />
+              </label>
+            </div>
+            <div class="row">
+              <label>Ancho copia (mm)
+                <input id="inpCopyW" type="number" step="0.5" min="10" value="80" />
+              </label>
+              <label>Copias
+                <input id="inpCopies" type="number" min="1" step="1" value="6" />
+              </label>
+            </div>
+
+            <!-- Aquí se insertan los hints por JS -->
+            <!-- <div id="printHints"></div> -->
+
+            <div class="row">
+              <button id="btnPrintSheet" type="button">Imprimir múltiple (PDF)</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="btnPNG" type="button">Exportar PNG</button>
+            <button id="btnPDF" type="button">Exportar PDF</button>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- Lienzo -->
+    <section id="viewport">
+      <canvas id="stage"></canvas>
+    </section>
+
+    <!-- Panel derecho (ayuda) -->
+    <aside id="rightPanel" class="panel">
+      <div class="panel-head">
+        <h2>Ayuda</h2>
+        <button id="btnCloseHelp" class="close">✕</button>
+      </div>
+      <div class="panel-body">
+        <p>Consejos rápidos:</p>
+        <ul>
+          <li>Espacio o botón ✋ para mover el lienzo.</li>
+          <li>Ctrl/Cmd+D duplica el objeto.</li>
+          <li>Eliminá objetos con Supr/Backspace (si no estás editando texto).</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Dock móvil: las pestañas se construyen por JS y los paneles se mueven aquí -->
+  <div id="mobileDock" style="display:none"></div>
+
+  <!-- Cropper modal -->
+  <dialog id="cropModal">
+    <div class="cropper-wrap">
+      <img id="cropperImage" alt="Crop target" />
+    </div>
+    <div class="cropper-toolbar">
+      <button id="cmZoomOut" type="button">−</button>
+      <button id="cmZoomIn" type="button">+</button>
+      <button id="cmRotate" type="button">⟳</button>
+      <button id="cmReset" type="button">Reset</button>
+      <label>Aspecto
+        <select id="cropAspect">
+          <option value="free">Libre</option>
+          <option value="1">1:1</option>
+          <option value="4/3">4:3</option>
+          <option value="3/4">3:4</option>
+          <option value="9/16">9:16</option>
+          <option value="16/9">16:9</option>
+        </select>
+      </label>
+      <div class="grow"></div>
+      <button id="cmApply" type="button" class="primary">Aplicar</button>
+      <button id="cmClose" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+
+  <!-- App -->
+  <script src="app.js"></script>
+  <script>
+    /* Acordeón para .group usando el <h3> como gatillo */
+    document.addEventListener('DOMContentLoaded', () => {
+      const groups = Array.from(document.querySelectorAll('#leftPanel .group'));
+      // Estado inicial: abrimos los 2 primeros, cerramos el resto (ajusta a gusto)
+      groups.forEach((g, i) => g.dataset.collapsed = (i >= 2 ? 'true' : 'false'));
+    
+      groups.forEach(g => {
+        const h3 = g.querySelector(':scope > h3');
+        if(!h3) return;
+        h3.addEventListener('click', () => {
+          const isCollapsed = g.dataset.collapsed === 'true';
+          g.dataset.collapsed = isCollapsed ? 'false' : 'true';
+        });
+      });
+    });
+    </script>
+
+
+</body>
+</html>
