@@ -722,8 +722,9 @@
     const out = isMono() ? await toGray(data) : data;
     const { jsPDF } = window.jspdf;
     const w = baseW * mult, h = baseH * mult;
-    const pdf=new jsPDF({ unit:'px', format:[w,h], orientation: (w>=h?'landscape':'portrait') });
-    pdf.addImage(out,'PNG',0,0,w,h,undefined,'FAST'); pdf.save('diseño.pdf');
+    const pdf = new jsPDF({ unit: 'px', format: [w, h], orientation: (w >= h ? 'landscape' : 'portrait'), compress: true });
+    pdf.addImage(out, 'JPEG', 0, 0, w, h, undefined, 'MEDIUM', 0.8);
+    pdf.save('diseño.pdf');
   }
 
   // ===== Imprimir múltiple (auto layout + hints) =====
