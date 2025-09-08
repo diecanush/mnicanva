@@ -397,7 +397,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const s  = Math.max(MIN_Z, Math.min(MAX_Z, Math.min((ow - M)/w, (oh - M)/h)));
     const tx = (ow - w*s) / 2;
     const ty = (oh - h*s) / 2;
-    canvas.setViewportTransform([s,0,0,s,tx,ty]); updateZoomLabel();
+    canvas.setViewportTransform([s,0,0,s,tx,ty]); updateZoomLabel(); updateDesignInfo();
     if (scrollTop) window.scrollTo(0, 0);
   }
   function zoomTo(newZ, centerPoint, recenter=false){
@@ -481,7 +481,8 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const near = (a,b,eps=0.003)=> Math.abs(a-b) < eps;
     const isoA = near(ratio, 1/Math.SQRT2) || near(ratio, Math.SQRT2);
     const tag  = isoA ? ' (≈ ISO A 1:√2)' : '';
-    document.getElementById('designInfo').textContent = `Lienzo: ${baseW}×${baseH}px · relación ${ratio.toFixed(3)}${tag}`;
+    const [,,, ,x, y] = canvas.viewportTransform || [1,0,0,1,0,0];
+    document.getElementById('designInfo').textContent = `Lienzo: ${baseW}×${baseH}px · relación ${ratio.toFixed(3)}${tag} · origen (${Math.round(x)}, ${Math.round(y)})`;
   }
   function updateSelInfo(){
     const a=canvas.getActiveObject();
