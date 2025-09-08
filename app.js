@@ -498,7 +498,9 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     vGuide.set({x1:w/2,y1:0,x2:w/2,y2:h});
     addOrUpdatePaper();
     canvas.requestRenderAll();
-    autoCenter = true; fitToViewport(true); updateDesignInfo();
+    autoCenter = true;
+    requestAnimationFrame(() => fitToViewport(true));
+    updateDesignInfo();
   }
   const setBg=(color)=>{ if(paperRect){ paperRect.set({ fill: color }); } if(paperShadowRect){ paperShadowRect.set({ fill: color }); } canvas.requestRenderAll(); };
 
@@ -1060,7 +1062,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       orderBackground();
       canvas.discardActiveObject(); canvas.requestRenderAll(); updateSelInfo();
       autoCenter = true;
-      fitToViewport(true);
+      requestAnimationFrame(() => fitToViewport(true));
     });
 
     // Texto
