@@ -1035,6 +1035,8 @@
       if(vignetteRect){ canvas.add(vignetteRect); }
       orderBackground();
       canvas.discardActiveObject(); canvas.requestRenderAll(); updateSelInfo();
+      autoCenter = true;
+      fitToViewport();
     });
 
     // Texto
