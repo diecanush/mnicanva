@@ -388,10 +388,11 @@
       requestAnimationFrame(()=>fitToViewport(scrollTop));
       return;
     }
-    const M = 24; const W = ow - M, H = oh - M;
+    const M = 24;
     const w = canvas.getWidth(), h = canvas.getHeight();
-    const s = Math.max(MIN_Z, Math.min(MAX_Z, Math.min(W/w, H/h)));
-    const tx = (W - w*s)/2, ty = (H - h*s)/2;
+    const s  = Math.max(MIN_Z, Math.min(MAX_Z, Math.min((ow - M)/w, (oh - M)/h)));
+    const tx = (ow - w*s) / 2;
+    const ty = (oh - h*s) / 2;
     canvas.setViewportTransform([s,0,0,s,tx,ty]); updateZoomLabel();
     if (scrollTop) window.scrollTo(0, 0);
   }
