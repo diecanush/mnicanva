@@ -370,6 +370,8 @@
 
     setupPanAndPinch();
     updateDesignInfo();
+    autoCenter = true;
+    fitToViewport();
   }
 
   // ===== Panning & Pinch Zoom =====
@@ -490,7 +492,7 @@
     vGuide.set({x1:w/2,y1:0,x2:w/2,y2:h});
     addOrUpdatePaper();
     canvas.requestRenderAll();
-    autoCenter = true; fitToViewport(); updateDesignInfo();
+    autoCenter = true; fitToViewport(); window.scrollTo(0,0); updateDesignInfo();
   }
   const setBg=(color)=>{ if(paperRect){ paperRect.set({ fill: color }); } if(paperShadowRect){ paperShadowRect.set({ fill: color }); } canvas.requestRenderAll(); };
 
@@ -1052,6 +1054,7 @@
       canvas.discardActiveObject(); canvas.requestRenderAll(); updateSelInfo();
       autoCenter = true;
       fitToViewport();
+      window.scrollTo(0,0);
     });
 
     // Texto
