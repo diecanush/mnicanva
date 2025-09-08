@@ -132,7 +132,18 @@ label.chk{ gap:6px; }
 
 /* Cropper dialog */
 #cropModal::backdrop{ background: rgba(0,0,0,.3); }
-#cropModal{ border:none; padding:0; max-width:min(95vw, 960px); width:95vw; }
+#cropModal,
+.no-dialog #cropModal .modal-content{ border:none; padding:0; max-width:min(95vw, 960px); width:95vw; background:#fff; }
+.no-dialog #cropModal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.3);
+  z-index:1000;
+}
+.no-dialog #cropModal.open{ display:flex; }
 .cropper-wrap{ max-height:65vh; overflow:auto; padding:12px; }
 .cropper-wrap img{ max-width:100%; display:block; margin:0 auto; }
 .cropper-toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-top:1px solid var(--border); }
