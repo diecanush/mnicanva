@@ -995,6 +995,7 @@
     switchMobileTab('tools');
     document.body.classList.add('mobile-docked');
     isMobileUI = true;
+    requestAnimationFrame(()=>fitToViewport());
   }
   function exitMobileDock(){
     if (!isMobileUI) return;
@@ -1006,10 +1007,12 @@
     if (dock) dock.style.display = 'none';
     document.body.classList.remove('mobile-docked');
     isMobileUI = false;
+    requestAnimationFrame(()=>fitToViewport());
   }
   function handleResponsivePanels(){
     const mobile = window.matchMedia('(max-width: 767px)').matches;
     if (mobile) enterMobileDock(); else exitMobileDock();
+    requestAnimationFrame(()=>fitToViewport());
   }
   function overrideOpenersForMobile(){
     const btnOpenTools = document.getElementById('btnOpenTools');
