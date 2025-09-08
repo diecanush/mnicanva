@@ -373,19 +373,19 @@
     setupPanAndPinch();
     updateDesignInfo();
     autoCenter = true;
-    fitToViewport();
+    fitToViewport(true);
   }
 
   // ===== Panning & Pinch Zoom =====
   const MIN_Z = 0.2, MAX_Z = 8;
   function updateZoomLabel(){ document.getElementById('zoomLabel').textContent = Math.round((canvas.getZoom()||1)*100)+'%'; }
-  function fitToViewport(){
+  function fitToViewport(scrollTop=false){
     const outer = document.getElementById('viewport');
     if(!outer||!canvas) return;
     const ow = outer.clientWidth;
     const oh = outer.clientHeight;
     if(ow <= 0 || oh <= 0){
-      requestAnimationFrame(fitToViewport);
+      requestAnimationFrame(()=>fitToViewport(scrollTop));
       return;
     }
     const M = 24; const W = ow - M, H = oh - M;
@@ -393,6 +393,7 @@
     const s = Math.max(MIN_Z, Math.min(MAX_Z, Math.min(W/w, H/h)));
     const tx = (W - w*s)/2, ty = (H - h*s)/2;
     canvas.setViewportTransform([s,0,0,s,tx,ty]); updateZoomLabel();
+    if (scrollTop) window.scrollTo(0, 0);
   }
   function zoomTo(newZ, centerPoint, recenter=false){
     const z = Math.max(MIN_Z, Math.min(MAX_Z, newZ));
@@ -494,7 +495,7 @@
     vGuide.set({x1:w/2,y1:0,x2:w/2,y2:h});
     addOrUpdatePaper();
     canvas.requestRenderAll();
-    autoCenter = true; fitToViewport(); window.scrollTo(0,0); updateDesignInfo();
+    autoCenter = true; fitToViewport(true); updateDesignInfo();
   }
   const setBg=(color)=>{ if(paperRect){ paperRect.set({ fill: color }); } if(paperShadowRect){ paperShadowRect.set({ fill: color }); } canvas.requestRenderAll(); };
 
@@ -1018,7 +1019,7 @@
   function handleResponsivePanels(){
     const mobile = window.matchMedia('(max-width: 767px)').matches;
     if (mobile) enterMobileDock(); else exitMobileDock();
-    requestAnimationFrame(()=>fitToViewport());
+    requestAnimationFrame(()=>fitToViewport(true));
   }
   function overrideOpenersForMobile(){
     const btnOpenTools = document.getElementById('btnOpenTools');
@@ -1056,8 +1057,7 @@
       orderBackground();
       canvas.discardActiveObject(); canvas.requestRenderAll(); updateSelInfo();
       autoCenter = true;
-      fitToViewport();
-      window.scrollTo(0,0);
+      fitToViewport(true);
     });
 
     // Texto
