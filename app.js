@@ -9,7 +9,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   const setHeaderHeight = () => {
     const el = document.getElementById('deskBar');
     document.documentElement.style.setProperty('--header-h', `${el?.offsetHeight || 0}px`);
-    fitToViewport();
+    fitToViewport(true);
   };
   window.addEventListener('resize', setHeaderHeight);
 
