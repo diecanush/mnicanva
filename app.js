@@ -1103,8 +1103,12 @@
     document.getElementById('btnHandHUD').addEventListener('click', ()=> { handMode = !handMode; canvas.skipTargetFind = handMode; canvas.defaultCursor = handMode ? 'grab' : 'default'; document.getElementById('btnHandHUD').classList.toggle('active', handMode); });
 
     // Fit inicial + cambios de tamaño de contenedor
-    const ro = new ResizeObserver(()=> { if(autoCenter) fitToViewport(); });
-    ro.observe(document.getElementById('viewport'));
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(()=> { if(autoCenter) fitToViewport(); });
+      ro.observe(document.getElementById('viewport'));
+    } else {
+      window.addEventListener('resize', ()=>{ if(autoCenter) fitToViewport(); });
+    }
     requestAnimationFrame(()=> requestAnimationFrame(()=> { autoCenter=true; fitToViewport(); }));
 
     // Dock móvil
