@@ -1,6 +1,9 @@
 (() => {
   const $ = (s)=>document.querySelector(s);
 
+  let canvas, showGuides=true, hGuide=null, vGuide=null, vignetteRect=null;
+  let paperRect=null, paperShadowRect=null;
+
   const setHeaderHeight = () => {
     const el = document.getElementById('deskBar');
     document.documentElement.style.setProperty('--header-h', `${el?.offsetHeight || 0}px`);
@@ -74,9 +77,6 @@
     "A4L":   { w:2970, h:2100 }  // 297x210 mm
   };
   let baseW=1080, baseH=1080;
-
-  let canvas, showGuides=true, hGuide=null, vGuide=null, vignetteRect=null;
-  let paperRect=null, paperShadowRect=null;
 
   let autoCenter = true;
   let handMode   = false;
