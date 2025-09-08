@@ -6,10 +6,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   let canvas, showGuides=true, hGuide=null, vGuide=null, vignetteRect=null;
   let paperRect=null, paperShadowRect=null;
 
-  const setHeaderHeight = () => {
+  const setHeaderHeight = (scrollTop=false) => {
     const el = document.getElementById('deskBar');
     document.documentElement.style.setProperty('--header-h', `${el?.offsetHeight || 0}px`);
-    fitToViewport();
+    fitToViewport(scrollTop === true);
   };
   window.addEventListener('resize', setHeaderHeight);
 
@@ -37,7 +37,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   const mq = window.matchMedia('(min-width: 768px)');
   function toggleDeskBar(e){
     document.getElementById('deskBar').style.display = e.matches ? 'flex' : 'none';
-    setHeaderHeight();
+    setHeaderHeight(true);
   }
   mq.addEventListener('change', toggleDeskBar);
 
@@ -52,19 +52,19 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
   document.getElementById('btnOpenTools').addEventListener('click', ()=> {
     document.getElementById('leftPanel').classList.toggle('open');
-    setTimeout(()=> { if(autoCenter) fitToViewport(); }, 320);
+    setTimeout(()=> { if(autoCenter) fitToViewport(true); }, 320);
   });
   document.getElementById('btnCloseTools').addEventListener('click', ()=> {
     document.getElementById('leftPanel').classList.remove('open');
-    setTimeout(()=> { if(autoCenter) fitToViewport(); }, 320);
+    setTimeout(()=> { if(autoCenter) fitToViewport(true); }, 320);
   });
   document.getElementById('btnOpenHelp').addEventListener('click', ()=> {
     document.getElementById('rightPanel').classList.toggle('open');
-    setTimeout(()=> { if(autoCenter) fitToViewport(); }, 320);
+    setTimeout(()=> { if(autoCenter) fitToViewport(true); }, 320);
   });
   document.getElementById('btnCloseHelp').addEventListener('click', ()=> {
     document.getElementById('rightPanel').classList.remove('open');
-    setTimeout(()=> { if(autoCenter) fitToViewport(); }, 320);
+    setTimeout(()=> { if(autoCenter) fitToViewport(true); }, 320);
   });
 
   // ====== Aspect presets (incluye A4) ======
