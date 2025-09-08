@@ -89,6 +89,7 @@ label.chk{ gap:6px; }
     grid-template-rows: auto 1fr auto;
   }
   #viewport{ min-height: 0; }
+  body.mobile-docked #mobileDock{ display:block; grid-row:3; }
   /* Antes estaba: #leftPanel, #rightPanel { display:none } */
   /* Ahora solo se ocultan cuando el JS ya los movió al dock */
   body.mobile-docked #app > #leftPanel,
@@ -123,7 +124,6 @@ label.chk{ gap:6px; }
 .fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Mobile Dock */
-#mobileDock { margin: 8px 12px 12px; }
 .md-tabs { display: flex; gap: 8px; }
 .md-tabs button {
   flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer;
@@ -216,9 +216,6 @@ button,
 }
 .font-picker .fp-name { color:#111827 !important; }
 .font-picker .fp-preview { color:#374151 !important; }
-
-/* si estabas viendo el dock móvil oculto por el inline style */
-body.mobile-docked #mobileDock { display:block !important; }
 
 /* === Paneles compactos y responsivos =================================== */
 :root{
@@ -412,6 +409,7 @@ button:disabled{ opacity:.6; cursor:not-allowed; }
 
 /* === Móvil: dock con pestañas bajo el lienzo =========================== */
 #mobileDock{
+  margin:8px 12px 12px;
   background:#fff; border-top:1px solid var(--border);
   padding:8px; display:none; /* lo muestra el JS cuando hace dock */
 }
