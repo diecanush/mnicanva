@@ -366,8 +366,15 @@
   const MIN_Z = 0.2, MAX_Z = 8;
   function updateZoomLabel(){ document.getElementById('zoomLabel').textContent = Math.round((canvas.getZoom()||1)*100)+'%'; }
   function fitToViewport(){
-    const outer = document.getElementById('viewport'); if(!outer||!canvas) return;
-    const M = 24; const W = outer.clientWidth - M, H = outer.clientHeight - M;
+    const outer = document.getElementById('viewport');
+    if(!outer||!canvas) return;
+    const ow = outer.clientWidth;
+    const oh = outer.clientHeight;
+    if(ow <= 0 || oh <= 0){
+      requestAnimationFrame(fitToViewport);
+      return;
+    }
+    const M = 24; const W = ow - M, H = oh - M;
     const w = canvas.getWidth(), h = canvas.getHeight();
     const s = Math.max(MIN_Z, Math.min(MAX_Z, Math.min(W/w, H/h)));
     const tx = (W - w*s)/2, ty = (H - h*s)/2;
