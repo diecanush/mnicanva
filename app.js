@@ -161,7 +161,6 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         <span class="fp-caret">▾</span>
       </button>
       <div class="fp-panel" role="listbox" aria-label="Tipografías">
-        <div class="fp-search"><input type="text" placeholder="Buscar tipografía…" aria-label="Buscar tipografía"></div>
         <div class="fp-list" id="fpList"></div>
       </div>
     `;
@@ -169,21 +168,17 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const current = host.querySelector('.fp-current');
     const panel = host.querySelector('.fp-panel');
     const list = host.querySelector('#fpList');
-    const search = host.querySelector('.fp-search input');
-
     // Forzar legibilidad por si el CSS global está oscuro
-    [trigger, panel, search].forEach(el=>{
+    [trigger, panel].forEach(el=>{
       if(el){ el.style.background = '#fff'; el.style.color = '#0f172a'; el.style.borderColor = '#e5e7eb'; }
     });
 
     let items = [];
     let selectedIndex = 0;
 
-    const renderList = (filterText='') => {
-      const q = filterText.trim().toLowerCase();
+    const renderList = () => {
       list.innerHTML = '';
-      items = FONT_SET.map((f, idx) => ({...f, idx}))
-                      .filter(f => !q || f.name.toLowerCase().includes(q));
+      items = FONT_SET.map((f, idx) => ({...f, idx}));
       items.forEach((f, i) => {
         const el = document.createElement('div');
         el.className = 'fp-item';
@@ -217,9 +212,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       if (isFabricEditing()) return;
       trigger.setAttribute('aria-expanded', 'true');
       panel.classList.add('open');
-      search.value = '';
-      renderList('');
-      if (!isFabricEditing()) setTimeout(() => search.focus(), 0);
+      renderList();
     };
     const closePanel = () => {
       trigger.setAttribute('aria-expanded', 'false');
@@ -265,7 +258,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       if (e.key === 'Escape') { e.preventDefault(); closePanel(); return; }
       if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, items.length - 1); updateActiveItem(); return; }
       if (e.key === 'ArrowUp')   { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); updateActiveItem(); return; }
-      if (e.key === 'Enter' && e.target !== search) {
+      if (e.key === 'Enter') {
         e.preventDefault();
         const globalIdx = items[selectedIndex]?.idx;
         if (globalIdx != null) chooseByIndex(globalIdx);
@@ -278,11 +271,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       if (isOpen) closePanel(); else openPanel();
     });
     document.addEventListener('click', (e) => { if (!host.contains(e.target)) closePanel(); });
-    search.addEventListener('input', () => renderList(search.value));
 
     const def = FONT_SET[0];
     current.textContent = def.name; current.style.fontFamily = def.family;
-    renderList('');
+    renderList();
   }
 
   // ====== Lienzo y fondo ======
@@ -397,8 +389,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const s  = Math.max(MIN_Z, Math.min(MAX_Z, Math.min((ow - M)/w, (oh - M)/h)));
     const tx = (ow - w*s) / 2;
     let ty = (oh - h*s) / 2;
-    if(scrollTop){ ty += h * s; }
-    canvas.setViewportTransform([s,0,0,s,tx,ty]); updateZoomLabel(); updateDesignInfo();
+    if(scrollTop){ ty = 0; }
+    canvas.setViewportTransform([s,0,0,s,tx,ty]);
+    updateZoomLabel();
+    updateDesignInfo();
     if (scrollTop) window.scrollTo(0, 0);
   }
   function zoomTo(newZ, centerPoint, recenter=false){
@@ -1169,10 +1163,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
     // Fit inicial + cambios de tamaño de contenedor
     if ('ResizeObserver' in window) {
-      const ro = new ResizeObserver(()=> { if(autoCenter) fitToViewport(); });
+      const ro = new ResizeObserver(()=> { if(autoCenter) fitToViewport(true); });
       ro.observe(document.getElementById('viewport'));
     } else {
-      window.addEventListener('resize', ()=>{ if(autoCenter) fitToViewport(); });
+      window.addEventListener('resize', ()=>{ if(autoCenter) fitToViewport(true); });
     }
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
