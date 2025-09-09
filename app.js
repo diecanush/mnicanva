@@ -397,8 +397,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const s  = Math.max(MIN_Z, Math.min(MAX_Z, Math.min((ow - M)/w, (oh - M)/h)));
     const tx = (ow - w*s) / 2;
     let ty = (oh - h*s) / 2;
-    if(scrollTop){ ty += h * s; }
-    canvas.setViewportTransform([s,0,0,s,tx,ty]); updateZoomLabel(); updateDesignInfo();
+    if(scrollTop){ ty = 0; }
+    canvas.setViewportTransform([s,0,0,s,tx,ty]);
+    updateZoomLabel();
+    updateDesignInfo();
     if (scrollTop) window.scrollTo(0, 0);
   }
   function zoomTo(newZ, centerPoint, recenter=false){
@@ -1169,10 +1171,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
     // Fit inicial + cambios de tamaño de contenedor
     if ('ResizeObserver' in window) {
-      const ro = new ResizeObserver(()=> { if(autoCenter) fitToViewport(); });
+      const ro = new ResizeObserver(()=> { if(autoCenter) fitToViewport(true); });
       ro.observe(document.getElementById('viewport'));
     } else {
-      window.addEventListener('resize', ()=>{ if(autoCenter) fitToViewport(); });
+      window.addEventListener('resize', ()=>{ if(autoCenter) fitToViewport(true); });
     }
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
