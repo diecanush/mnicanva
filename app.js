@@ -198,13 +198,12 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     };
     const indexInFiltered = (globalIdx) => items.findIndex(it => it.idx === globalIdx);
     const updateActiveItem = () => {
-      [...list.children].forEach((el, i) => { el.setAttribute('aria-selected', i === selectedIndex ? 'true' : 'false'); });
+      [...list.children].forEach((el, i) => {
+        el.setAttribute('aria-selected', i === selectedIndex ? 'true' : 'false');
+      });
       const active = list.children[selectedIndex];
-      if (active) {
-        const r = active.getBoundingClientRect();
-        const lr = list.getBoundingClientRect();
-        if (r.top < lr.top) list.scrollTop += r.top - lr.top - 8;
-        if (r.bottom > lr.bottom) list.scrollTop += r.bottom - lr.bottom + 8;
+      if (active && active.scrollIntoView) {
+        active.scrollIntoView({ block: 'nearest' });
       }
     };
     const openPanel = () => {
