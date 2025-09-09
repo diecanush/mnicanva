@@ -120,14 +120,11 @@ label.chk{ gap:6px; }
 }
 .fp-panel.open { display: block; }
 
-.fp-search { padding: 8px 10px; border-bottom: 1px solid #f3f4f6; }
-.fp-search input { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; }
-
-.fp-list { max-height: 260px; overflow: auto; padding: 6px; }
-.fp-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.fp-list { padding: 6px; }
+.fp-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; }
 .fp-item:hover, .fp-item[aria-selected="true"] { background: #f3f4f6; }
-.fp-name { font-size: 14px; min-width: 130px; color: #111827; }
-.fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-name { font-size: 14px; color: #111827; display:block; }
+.fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display:block; margin-top:4px; }
 
 /* Mobile Dock */
 .md-tabs { display: flex; gap: 8px; }
@@ -165,7 +162,7 @@ label.chk{ gap:6px; }
   :root{ --bg:#0b1220; --panel:#0f172a; --border:#243244; --text:#e5e7eb; --muted:#93a4b6; }
   #viewport{ background: #0f172a; }
   label input, label select, #deskBar button, .row button, .cropper-toolbar button{ background:#0b1220; color:var(--text); border-color:var(--border); }
-  .fp-trigger, .fp-panel, .fp-search input, .md-tabs button{ background:#0b1220; border-color:#243244; color:var(--text); }
+  .fp-trigger, .fp-panel, .md-tabs button{ background:#0b1220; border-color:#243244; color:var(--text); }
   .fp-item:hover, .fp-item[aria-selected="true"], .md-tabs button.active { background:#101826; }
 }
 
@@ -210,8 +207,7 @@ button,
 
 /* === Font picker: forzar tema claro y texto legible === */
 .font-picker .fp-trigger,
-.font-picker .fp-panel,
-.font-picker .fp-search input {
+.font-picker .fp-panel {
   background: #fff !important;
   color: #0f172a !important;
   border-color: #e5e7eb !important;
@@ -286,7 +282,6 @@ button,
 /* Inputs al 100% del ancho disponible */
 input[type="text"],
 input[type="number"],
-input[type="color"],
 input[type="file"],
 select,
 .font-picker .fp-trigger{
@@ -308,8 +303,7 @@ select,
 select,
 input,
 .font-picker .fp-trigger,
-.font-picker .fp-panel,
-.font-picker .fp-search input{
+.font-picker .fp-panel{
   background:#fff !important;
   color:#0f172a !important;
   border:1px solid var(--border) !important;
@@ -320,14 +314,11 @@ input,
 /* El panel del font-picker no se sale del ancho */
 .font-picker{ width: 100%; }
 .font-picker .fp-panel{
-  max-height: 240px;
-  overflow: auto;
   margin-top: 6px;
   width: 100%;
 }
 .font-picker .fp-list .fp-item{
-  display:flex; justify-content:space-between; align-items:center;
-  gap:8px; padding:6px 8px; border-radius:6px;
+  padding:6px 8px; border-radius:6px;
 }
 .font-picker .fp-item:hover,
 .font-picker .fp-item[aria-selected="true"]{ background:#f3f4f6 !important; }
@@ -485,7 +476,7 @@ label{ display: grid; gap: var(--gap-sm); font-size: 12px; color: var(--muted); 
 label > input, label > select{ margin-top: 2px; }
 
 /* Controles al 100% */
-input[type="text"], input[type="number"], input[type="color"], input[type="file"],
+input[type="text"], input[type="number"], input[type="file"],
 select, #fontPicker, #fontPicker .fp-trigger{ width: 100%; }
 
 /* Botones que envuelven si no entra todo */
@@ -496,10 +487,12 @@ select, #fontPicker, #fontPicker .fp-trigger{ width: 100%; }
 
 /* Forzar tema claro para legibilidad */
 select, input, button,
-#fontPicker .fp-trigger, #fontPicker .fp-panel, #fontPicker .fp-search input{
+#fontPicker .fp-trigger, #fontPicker .fp-panel{
   background:#fff !important; color:#0f172a !important; border:1px solid var(--border) !important;
   border-radius:8px; padding:8px;
 }
+
+input[type="color"]{ width:32px; height:32px; padding:0; }
 
 /* ===== Acordeón basado en <h3> dentro de .group ===== */
 .group{
