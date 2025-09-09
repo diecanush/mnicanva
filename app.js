@@ -412,6 +412,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       canvas.setViewportTransform(vpt);
     }
     updateZoomLabel();
+    updateDesignInfo();
   }
   function clientToCanvasPoint(clientX, clientY){
     const rect = canvas.upperCanvasEl.getBoundingClientRect();
@@ -441,6 +442,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       vpt[5] += (e.clientY - lastClient.y);
       lastClient={x:e.clientX,y:e.clientY};
       canvas.requestRenderAll();
+      updateDesignInfo();
     });
     const endDrag=()=>{ if(isDragging){ isDragging=false; canvas.selection=true; canvas.defaultCursor = (handMode||spaceDown)?'grab':'default'; } };
     canvas.on('mouse:up', endDrag);
@@ -460,6 +462,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         vpt[5] += (mid.y - lastMid.y);
         canvas.setViewportTransform(vpt);
         updateZoomLabel();
+        updateDesignInfo();
       }
       lastDist = dist; lastMid = mid; } }, {passive:false});
     el.addEventListener('touchend', (e)=>{ if(e.touches.length<2){ pinchActive=false; } }, {passive:false});
@@ -472,6 +475,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       autoCenter = false;
       canvas.zoomToPoint(midCanvas, z);
       updateZoomLabel();
+      updateDesignInfo();
       opt.e.preventDefault(); opt.e.stopPropagation();
     });
   }
