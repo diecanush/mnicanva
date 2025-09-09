@@ -120,7 +120,9 @@ label.chk{ gap:6px; }
 }
 .fp-panel.open { display: block; }
 
-.fp-list { padding: 6px; }
+
+.fp-list { max-height: 260px; overflow: auto; padding: 6px; }
+
 .fp-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; }
 .fp-item:hover, .fp-item[aria-selected="true"] { background: #f3f4f6; }
 .fp-name { font-size: 14px; color: #111827; display:block; }
