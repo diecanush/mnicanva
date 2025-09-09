@@ -387,12 +387,14 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const w = canvas.getWidth(), h = canvas.getHeight();
     const s  = Math.max(MIN_Z, Math.min(MAX_Z, Math.min((ow - M)/w, (oh - M)/h)));
     const tx = (ow - w*s) / 2;
+
     let ty = (oh - h*s) / 2;
     if(scrollTop){ ty = 0; }
     canvas.setViewportTransform([s,0,0,s,tx,ty]);
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop) window.scrollTo(0, 0);
+
   }
   function zoomTo(newZ, centerPoint, recenter=false){
     const z = Math.max(MIN_Z, Math.min(MAX_Z, newZ));
