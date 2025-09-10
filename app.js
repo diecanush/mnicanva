@@ -398,8 +398,8 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop) {
-      const top = outer.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo(0, top);
+      const diff = outer.getBoundingClientRect().top;
+      if (diff !== 0) window.scrollBy(0, diff);
     }
 
   }
