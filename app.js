@@ -397,7 +397,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     canvas.setViewportTransform([s,0,0,s,tx,ty]);
     updateZoomLabel();
     updateDesignInfo();
-    if (scrollTop) window.scrollTo(0, 0);
+    if (scrollTop) {
+      const top = outer.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo(0, top);
+    }
 
   }
   function zoomTo(newZ, centerPoint, recenter=false){
