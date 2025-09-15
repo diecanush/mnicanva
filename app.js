@@ -398,8 +398,12 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop) {
-      const diff = outer.getBoundingClientRect().top;
-      if (diff !== 0) window.scrollBy(0, diff);
+      const rect = outer.getBoundingClientRect();
+      const header = document.getElementById('deskBar');
+      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+      const diff = rect.top - headerBottom;
+      if (Math.abs(diff) > 1) window.scrollBy(0, diff);
+
     }
 
   }
