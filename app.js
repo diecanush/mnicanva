@@ -403,6 +403,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
       const diff = rect.top - headerBottom;
       if (Math.abs(diff) > 1) window.scrollBy(0, diff);
+
     }
 
   }
