@@ -398,9 +398,27 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop) {
+      let rect = outer.getBoundingClientRect();
       const header = document.getElementById('deskBar');
+      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+      const diff = headerBottom - rect.top;
+
+      console.log({
+        zoom: canvas.getZoom(),
+        scrollY: window.scrollY,
+        rectTop: rect.top,
+        headerBottom,
+        diff
+      });
+
+      if (Math.abs(diff) > 1) {
+        window.scrollBy(0, diff);
+        console.log('scrolled', diff, '=>', window.scrollY);
+        rect = outer.getBoundingClientRect();
+      }
+
       const headerHeight = header?.offsetHeight || 0;
-      const target = outer.getBoundingClientRect().top + window.scrollY - headerHeight;
+      const target = rect.top + window.scrollY - headerHeight;
       window.scrollTo({ top: target, left: 0, behavior: 'instant' });
 
     }
