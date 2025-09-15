@@ -398,10 +398,11 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop) {
-      let rect = outer.getBoundingClientRect();
+      // const rect = outer.getBoundingClientRect();
+      let rect = canvas.upperCanvasEl.getBoundingClientRect();
       const header = document.getElementById('deskBar');
       const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
-      const diff = headerBottom - rect.top;
+      let diff = rect.top - headerBottom;
 
       console.log({
         zoom: canvas.getZoom(),
@@ -411,10 +412,11 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         diff
       });
 
-      if (Math.abs(diff) > 1) {
+      while (Math.abs(diff) > 1) {
         window.scrollBy(0, diff);
         console.log('scrolled', diff, '=>', window.scrollY);
-        rect = outer.getBoundingClientRect();
+        rect = canvas.upperCanvasEl.getBoundingClientRect();
+        diff = rect.top - headerBottom;
       }
 
       const headerHeight = header?.offsetHeight || 0;
