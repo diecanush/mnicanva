@@ -401,7 +401,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       const rect = outer.getBoundingClientRect();
       const header = document.getElementById('deskBar');
       const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
-      const diff = rect.top - headerBottom;
+      const diff = headerBottom - rect.top;
       if (Math.abs(diff) > 1) window.scrollBy(0, diff);
 
     }
