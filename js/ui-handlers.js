@@ -1100,28 +1100,60 @@ let isMobileUI = false;
 let leftPH;
 let rightPH;
 
+function setMobileDockCollapsed(collapsed) {
+  const dock = document.getElementById('mobileDock');
+  const toggle = dock?.querySelector('.md-toggle');
+  const content = dock?.querySelector('.md-content');
+  if (dock) dock.classList.toggle('collapsed', collapsed);
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', collapsed ? 'Expandir panel móvil' : 'Contraer panel móvil');
+    toggle.setAttribute('title', collapsed ? 'Expandir panel móvil' : 'Contraer panel móvil');
+  }
+  if (content) {
+    content.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    if (collapsed) content.setAttribute('inert', ''); else content.removeAttribute('inert');
+  }
+  document.body.classList.toggle('collapsed', collapsed && isMobileUI);
+}
+
 function buildMobileDockOnce() {
   const dock = document.getElementById('mobileDock');
   if (!dock || dock.dataset.ready === '1') return;
   dock.dataset.ready = '1';
   dock.innerHTML = `
-    <div class="md-zoom"></div>
-    <div class="md-tabs">
-      <button type="button" class="md-tab" data-tab="tools">Herramientas</button>
-      <button type="button" class="md-tab" data-tab="help">Ayuda</button>
+    <div class="md-top">
+      <span class="md-title">Panel móvil</span>
+      <button type="button" class="md-toggle" aria-expanded="true" aria-controls="mobileDockContent" aria-label="Contraer panel móvil" title="Contraer panel móvil">
+        <span class="md-toggle-icon" aria-hidden="true">▾</span>
+      </button>
     </div>
-    <div class="md-panels">
-      <div class="md-panel" id="md-tools"></div>
-      <div class="md-panel" id="md-help"></div>
+    <div class="md-content" id="mobileDockContent" aria-hidden="false">
+      <div class="md-zoom"></div>
+      <div class="md-tabs">
+        <button type="button" class="md-tab" data-tab="tools">Herramientas</button>
+        <button type="button" class="md-tab" data-tab="help">Ayuda</button>
+      </div>
+      <div class="md-panels">
+        <div class="md-panel" id="md-tools"></div>
+        <div class="md-panel" id="md-help"></div>
+      </div>
     </div>
   `;
   const tabs = dock.querySelectorAll('.md-tab');
   tabs.forEach((btn) => btn.addEventListener('click', () => switchMobileTab(btn.dataset.tab)));
+  dock.querySelector('.md-toggle')?.addEventListener('click', () => {
+    const next = !dock.classList.contains('collapsed');
+    setMobileDockCollapsed(next);
+    requestAnimationFrame(() => fitToViewport());
+  });
+  setMobileDockCollapsed(false);
 }
 
 function switchMobileTab(which = 'tools') {
   const dock = document.getElementById('mobileDock');
   if (!dock || !isMobileUI) return;
+  if (dock.classList.contains('collapsed')) setMobileDockCollapsed(false);
   dock.querySelectorAll('.md-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
   dock.querySelectorAll('.md-panel').forEach((p) => p.classList.toggle('active', (p.id === (which === 'tools' ? 'md-tools' : 'md-help'))));
   requestAnimationFrame(() => fitToViewport());
@@ -1134,6 +1166,7 @@ function enterMobileDock() {
   const dock = document.getElementById('mobileDock');
   if (!left || !right || !dock) return;
   buildMobileDockOnce();
+  setMobileDockCollapsed(false);
   const zoomSlot = dock.querySelector('.md-zoom');
   const hud = document.querySelector('#deskBar .hud');
   if (hud && zoomSlot) zoomSlot.appendChild(hud);
@@ -1150,9 +1183,10 @@ function enterMobileDock() {
   dock.style.display = '';
   dock.querySelector('#md-tools')?.appendChild(left);
   dock.querySelector('#md-help')?.appendChild(right);
-  switchMobileTab('tools');
   document.body.classList.add('mobile-docked');
   isMobileUI = true;
+  setMobileDockCollapsed(false);
+  switchMobileTab('tools');
   requestAnimationFrame(() => fitToViewport());
 }
 
@@ -1163,11 +1197,13 @@ function exitMobileDock() {
   const dock = document.getElementById('mobileDock');
   const desk = document.getElementById('deskBar');
   const hud = dock?.querySelector('.hud');
+  setMobileDockCollapsed(false);
   if (leftPH && left) leftPH.parentNode.insertBefore(left, leftPH);
   if (rightPH && right) rightPH.parentNode.insertBefore(right, rightPH);
   if (hud && desk) desk.appendChild(hud);
   if (dock) dock.style.display = 'none';
   document.body.classList.remove('mobile-docked');
+  document.body.classList.remove('collapsed');
   isMobileUI = false;
   requestAnimationFrame(() => fitToViewport());
 }

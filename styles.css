@@ -95,7 +95,8 @@ label.chk{ gap:6px; }
     max-height:50dvh;
     overflow:auto;
   }
-  body.mobile-docked #mobileDock{ display:block; grid-row:3; }
+  body.mobile-docked #mobileDock{ display:flex; grid-row:3; }
+  body.collapsed #app{ grid-template-rows: auto 1fr min-content; }
   /* Antes estaba: #leftPanel, #rightPanel { display:none } */
   /* Ahora solo se ocultan cuando el JS ya los movió al dock */
   body.mobile-docked #app > #leftPanel,
@@ -130,10 +131,73 @@ label.chk{ gap:6px; }
 .fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display:block; margin-top:4px; }
 
 /* Mobile Dock */
+#mobileDock {
+  display: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  padding: 12px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#mobileDock .md-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#mobileDock .md-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobileDock .md-toggle {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#mobileDock .md-toggle-icon {
+  transition: transform 0.2s ease;
+  font-size: 18px;
+  line-height: 1;
+}
+
+#mobileDock .md-toggle[aria-expanded="false"] .md-toggle-icon {
+  transform: rotate(180deg);
+}
+
+#mobileDock .md-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#mobileDock.collapsed {
+  max-height: 72px;
+  padding-bottom: 12px;
+  overflow: hidden;
+}
+
+#mobileDock.collapsed .md-content {
+  display: none;
+}
+
 .md-zoom {
   display: flex;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 .md-zoom:empty {
   display: none;
