@@ -68,7 +68,7 @@ label.chk{ gap:6px; }
 #viewport{
   background: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 20px 20px;
   border:1px solid var(--border); border-radius:12px; position:relative; min-height: 300px;
-  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  display:flex; align-items:flex-start; justify-content:center; overflow:hidden;
   height: 100%;
 }
 #stage{ outline:none; }
