@@ -534,7 +534,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     addOrUpdatePaper();
     canvas.requestRenderAll();
     autoCenter = true;
-    requestAnimationFrame(() => fitToViewport(true));
+    requestAnimationFrame(() => {
+      canvas.requestRenderAll();
+      requestAnimationFrame(() => fitToViewport(true));
+    });
     updateDesignInfo();
   }
   const setBg=(color)=>{ if(paperRect){ paperRect.set({ fill: color }); } if(paperShadowRect){ paperShadowRect.set({ fill: color }); } canvas.requestRenderAll(); };
@@ -1059,7 +1062,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   function handleResponsivePanels(){
     const mobile = window.matchMedia('(max-width: 767px)').matches;
     if (mobile) enterMobileDock(); else exitMobileDock();
-    requestAnimationFrame(()=>fitToViewport(true));
+    requestAnimationFrame(() => {
+      canvas.requestRenderAll();
+      requestAnimationFrame(() => fitToViewport(true));
+    });
   }
   function overrideOpenersForMobile(){
     const btnOpenTools = document.getElementById('btnOpenTools');
@@ -1117,7 +1123,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       orderBackground();
       canvas.discardActiveObject(); canvas.requestRenderAll(); updateSelInfo();
       autoCenter = true;
-      requestAnimationFrame(() => fitToViewport(true));
+      requestAnimationFrame(() => {
+        canvas.requestRenderAll();
+        requestAnimationFrame(() => fitToViewport(true));
+      });
     });
 
     // Texto
