@@ -423,8 +423,19 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     const diff = headerBottom - canvasTop;
     updateZoomLabel();
     updateDesignInfo();
-    if (scrollTop && Math.abs(diff) > 1) {
-      window.scrollBy(0, diff);
+    const vpt = canvas.viewportTransform;
+    if (scrollTop && vpt[5] !== 0) {
+      window.scrollBy(0, vpt[5]);
+      vpt[5] = 0;
+      canvas.setViewportTransform(vpt);
+    }
+    if (scrollTop) {
+      const canvasTop = Math.max(0, window.scrollY + rect.top - headerBottom);
+      if (Math.abs(canvasTop - window.scrollY) > 1) {
+        window.scrollTo({ top: canvasTop, left: 0 });
+
+      }
+
     }
 
   }
