@@ -1103,6 +1103,7 @@ function buildMobileDockOnce() {
   if (!dock || dock.dataset.ready === '1') return;
   dock.dataset.ready = '1';
   dock.innerHTML = `
+    <div class="md-zoom"></div>
     <div class="md-tabs">
       <button type="button" class="md-tab" data-tab="tools">Herramientas</button>
       <button type="button" class="md-tab" data-tab="help">Ayuda</button>
@@ -1131,6 +1132,9 @@ function enterMobileDock() {
   const dock = document.getElementById('mobileDock');
   if (!left || !right || !dock) return;
   buildMobileDockOnce();
+  const zoomSlot = dock.querySelector('.md-zoom');
+  const hud = document.querySelector('#deskBar .hud');
+  if (hud && zoomSlot) zoomSlot.appendChild(hud);
   if (!leftPH) {
     leftPH = document.createElement('div');
     leftPH.id = 'leftPH';
@@ -1155,8 +1159,11 @@ function exitMobileDock() {
   const left = document.getElementById('leftPanel');
   const right = document.getElementById('rightPanel');
   const dock = document.getElementById('mobileDock');
+  const desk = document.getElementById('deskBar');
+  const hud = dock?.querySelector('.hud');
   if (leftPH && left) leftPH.parentNode.insertBefore(left, leftPH);
   if (rightPH && right) rightPH.parentNode.insertBefore(right, rightPH);
+  if (hud && desk) desk.appendChild(hud);
   if (dock) dock.style.display = 'none';
   document.body.classList.remove('mobile-docked');
   isMobileUI = false;

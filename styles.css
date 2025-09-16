@@ -130,6 +130,28 @@ label.chk{ gap:6px; }
 .fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display:block; margin-top:4px; }
 
 /* Mobile Dock */
+.md-zoom {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.md-zoom:empty {
+  display: none;
+}
+.md-zoom .hud {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.md-zoom .hud > * {
+  flex: 0 0 auto;
+}
+.md-zoom .hud #zoomLabel {
+  min-width: 48px;
+  text-align: center;
+}
 .md-tabs { display: flex; gap: 8px; }
 .md-tabs button {
   flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer;
