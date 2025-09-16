@@ -1076,13 +1076,33 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
   // ===== DOMContentLoaded =====
   window.addEventListener('DOMContentLoaded', async ()=>{
+    console.log('setHeaderHeight: start');
     setHeaderHeight();
-    injectGoogleFonts();
-    populateFontSelect();
-    buildFontPicker();
+    console.log('setHeaderHeight: done');
 
-    initCanvas();
+    console.log('injectGoogleFonts: start');
+    injectGoogleFonts();
+    console.log('injectGoogleFonts: done');
+
+    console.log('populateFontSelect: start');
+    populateFontSelect();
+    console.log('populateFontSelect: done');
+
+    console.log('buildFontPicker: start');
+    buildFontPicker();
+    console.log('buildFontPicker: done');
+
+    console.log('initCanvas: start');
+    try {
+      initCanvas();
+      console.log('initCanvas: done');
+    } catch (error) {
+      console.error('initCanvas: error', error);
+    }
+
+    console.log('toggleDeskBar: start');
     toggleDeskBar(mq);
+    console.log('toggleDeskBar: done');
 
     // Formato
     document.getElementById('selAspect').addEventListener('change',(e)=> setAspect(e.target.value));
