@@ -377,12 +377,36 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   function fitToViewport(scrollTop=false){
     const outer = document.getElementById('viewport');
     if(!outer||!canvas) return;
-    const ow = outer.clientWidth;
-    const oh = Math.min(outer.clientHeight, window.innerHeight);
+
+    const rect = outer.getBoundingClientRect();
+    const header = document.getElementById('deskBar');
+    const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+    const viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+
+    const rawWidth = rect.width || outer.clientWidth || outer.offsetWidth || 0;
+    const rawHeight = rect.height || outer.clientHeight || outer.offsetHeight || 0;
+
+    const visibleWidth = Math.max(0, Math.min(rawWidth, viewportW - Math.max(rect.left, 0)));
+    const visibleHeight = Math.max(0, Math.min(rawHeight, viewportH - Math.max(rect.top, headerBottom)));
+
+    let ow = visibleWidth;
+    if (ow <= 0) {
+      ow = rawWidth > 0 ? Math.min(rawWidth, viewportW) : viewportW;
+    }
+
+    let oh = visibleHeight;
+    if (oh <= 0) {
+      const maxHeight = Math.max(0, viewportH - headerBottom);
+      const basis = rawHeight > 0 ? rawHeight : maxHeight;
+      oh = Math.min(basis, maxHeight || viewportH);
+    }
+
     if(ow <= 0 || oh <= 0){
       requestAnimationFrame(()=>fitToViewport(scrollTop));
       return;
     }
+
     const M = 24;
     const w = canvas.getWidth(), h = canvas.getHeight();
     const s  = Math.max(MIN_Z, Math.min(MAX_Z, Math.min((ow - M)/w, (oh - M)/h)));
@@ -398,12 +422,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop) {
-      const rect = outer.getBoundingClientRect();
-      const header = document.getElementById('deskBar');
-      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
-      const target = window.scrollY + rect.top - headerBottom;
-      if (Math.abs(target - window.scrollY) > 1) {
-        window.scrollTo({ top: target, left: 0 });
+      const targetTop = Math.max(0, window.scrollY + rect.top - headerBottom);
+      if (Math.abs(targetTop - window.scrollY) > 1) {
+        window.scrollTo({ top: targetTop, left: 0 });
+
       }
     }
 
