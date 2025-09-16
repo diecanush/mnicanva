@@ -421,10 +421,17 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     canvas.setViewportTransform([s,0,0,s,tx,ty]);
     updateZoomLabel();
     updateDesignInfo();
+
+    const vpt = canvas.viewportTransform;
+    if (scrollTop && vpt[5] !== 0) {
+      window.scrollBy(0, vpt[5]);
+      vpt[5] = 0;
+      canvas.setViewportTransform(vpt);
+    }
     if (scrollTop) {
-      const targetTop = Math.max(0, window.scrollY + rect.top - headerBottom);
-      if (Math.abs(targetTop - window.scrollY) > 1) {
-        window.scrollTo({ top: targetTop, left: 0 });
+      const canvasTop = Math.max(0, window.scrollY + rect.top - headerBottom);
+      if (Math.abs(canvasTop - window.scrollY) > 1) {
+        window.scrollTo({ top: canvasTop, left: 0 });
 
       }
     }
