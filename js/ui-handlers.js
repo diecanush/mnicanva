@@ -548,7 +548,9 @@ function applyFeatherMaskToActive(px = 40, shape = 'rect') {
     alert('Seleccioná una imagen primero.');
     return;
   }
-  const src = target.__origSrc || target._originalElement?.src || target.toDataURL({ format: 'png' });
+  const baseSrc = target._originalElement?.src || target.toDataURL({ format: 'png' });
+  const maskSrc = target.__maskedSrc || baseSrc;
+  const origSrc = target.__origSrc || baseSrc;
   const img = new Image();
   img.onload = () => {
     const w = img.naturalWidth || img.width;
@@ -615,10 +617,10 @@ function applyFeatherMaskToActive(px = 40, shape = 'rect') {
     const dispW = target.getScaledWidth();
     const dispH = target.getScaledHeight();
     const idx = canvas.getObjects().indexOf(target);
-    if (!target.__origSrc) target.__origSrc = src;
+    if (!target.__origSrc && origSrc) target.__origSrc = origSrc;
     canvas.remove(target);
     fabric.Image.fromURL(dataURL, (img2) => {
-      img2.__origSrc = src;
+      img2.__origSrc = origSrc;
       img2.__maskedSrc = dataURL;
       img2.set({ originX: 'center', originY: 'center', left: center.x, top: center.y, angle });
       const sx = dispW / img2.width;
@@ -634,7 +636,7 @@ function applyFeatherMaskToActive(px = 40, shape = 'rect') {
     }, { crossOrigin: 'anonymous' });
   };
   img.onerror = () => alert('No se pudo cargar la imagen para enmascarar.');
-  img.src = src;
+  img.src = maskSrc;
 }
 
 function removeFeatherMaskFromActive() {
