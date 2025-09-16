@@ -418,12 +418,23 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     if (w * s > ow) tx = 0;
     if (scrollTop || h * s > oh) ty = 0;
 
+    console.log('fitToViewport start', {
+      zoom: canvas.getZoom(),
+      outerTop: outer.getBoundingClientRect().top,
+      headerBottom,
+      tx, ty,
+    });
     canvas.setViewportTransform([s,0,0,s,tx,ty]);
+    console.log('transform', canvas.viewportTransform);
     const canvasTop = canvas.upperCanvasEl.getBoundingClientRect().top;
     const diff = headerBottom - canvasTop;
     updateZoomLabel();
     updateDesignInfo();
     if (scrollTop && Math.abs(diff) > 1) {
+      console.log('scroll', {
+        scrollY: window.scrollY,
+        targetTop: window.scrollY + rect.top - headerBottom
+      });
       window.scrollBy(0, diff);
     }
 
@@ -536,7 +547,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     autoCenter = true;
     requestAnimationFrame(() => {
       canvas.requestRenderAll();
-      requestAnimationFrame(() => fitToViewport(true));
+      requestAnimationFrame(() => {
+        console.log('calling fitToViewport from setAspect');
+        fitToViewport(true);
+      });
     });
     updateDesignInfo();
   }
@@ -1064,7 +1078,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     if (mobile) enterMobileDock(); else exitMobileDock();
     requestAnimationFrame(() => {
       canvas.requestRenderAll();
-      requestAnimationFrame(() => fitToViewport(true));
+      requestAnimationFrame(() => {
+        console.log('calling fitToViewport from setAspect');
+        fitToViewport(true);
+      });
     });
   }
   function overrideOpenersForMobile(){
@@ -1125,7 +1142,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       autoCenter = true;
       requestAnimationFrame(() => {
         canvas.requestRenderAll();
-        requestAnimationFrame(() => fitToViewport(true));
+        requestAnimationFrame(() => {
+          console.log('calling fitToViewport from setAspect');
+          fitToViewport(true);
+        });
       });
     });
 
