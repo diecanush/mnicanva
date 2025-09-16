@@ -122,17 +122,32 @@ export function setupPanAndPinch() {
   if (!canvas) return;
 
   const el = canvas.upperCanvasEl;
+  const computeShouldPan = (target) => !isFabricEditing() && (canvasState.spaceDown || canvasState.handMode || !target);
   let isDragging = false;
   let lastClient = { x: 0, y: 0 };
   let pinchActive = false;
+  let touchDragActive = false;
   let lastDist = 0;
   let lastMid = { x: 0, y: 0 };
 
   canvas.on('mouse:down', (opt) => {
     const e = opt.e;
-    const shouldPan = !isFabricEditing() && (canvasState.spaceDown || canvasState.handMode || !opt.target);
-    if (shouldPan && !e.touches) {
+    const shouldPan = computeShouldPan(opt.target);
+    const touches = e.touches;
+    if (!shouldPan) {
+      touchDragActive = false;
+      return;
+    }
+    if (touches && touches.length === 1) {
+      const touch = touches[0];
       isDragging = true;
+      touchDragActive = true;
+      canvas.selection = false;
+      canvas.defaultCursor = 'grabbing';
+      lastClient = { x: touch.clientX, y: touch.clientY };
+    } else if (!touches) {
+      isDragging = true;
+      touchDragActive = false;
       canvas.selection = false;
       canvas.defaultCursor = 'grabbing';
       lastClient = { x: e.clientX, y: e.clientY };
@@ -142,6 +157,7 @@ export function setupPanAndPinch() {
   canvas.on('mouse:move', (opt) => {
     if (!isDragging) return;
     const e = opt.e;
+    if (e.touches && e.touches.length) return;
     const vpt = canvas.viewportTransform;
     if (!vpt) return;
     vpt[4] += (e.clientX - lastClient.x);
@@ -154,6 +170,7 @@ export function setupPanAndPinch() {
   const endDrag = () => {
     if (isDragging) {
       isDragging = false;
+      touchDragActive = false;
       canvas.selection = true;
       canvas.defaultCursor = (canvasState.handMode || canvasState.spaceDown) ? 'grab' : 'default';
     }
@@ -175,16 +192,46 @@ export function setupPanAndPinch() {
   }
 
   el.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
+    const touchCount = e.touches.length;
+    if (touchCount === 2) {
       pinchActive = true;
+      touchDragActive = false;
       canvasState.autoCenter = false;
       lastDist = getDist(e.touches);
       lastMid = getMid(e.touches);
+      return;
+    }
+    if (touchCount === 1) {
+      const touch = e.touches[0];
+      let target = null;
+      if (typeof canvas.findTarget === 'function') {
+        const prevTarget = canvas._target;
+        const prevTransform = canvas._currentTransform;
+        const prevPointer = canvas._pointer;
+        const prevAbsolutePointer = canvas._absolutePointer;
+        target = canvas.findTarget(e, false);
+        canvas._target = prevTarget;
+        canvas._currentTransform = prevTransform;
+        canvas._pointer = prevPointer;
+        canvas._absolutePointer = prevAbsolutePointer;
+      }
+      const shouldPan = computeShouldPan(target);
+      if (shouldPan) {
+        pinchActive = false;
+        touchDragActive = true;
+        isDragging = true;
+        canvas.selection = false;
+        canvas.defaultCursor = 'grabbing';
+        lastClient = { x: touch.clientX, y: touch.clientY };
+      } else {
+        touchDragActive = false;
+      }
     }
   }, { passive: false });
 
   el.addEventListener('touchmove', (e) => {
-    if (pinchActive && e.touches.length === 2) {
+    const touchCount = e.touches.length;
+    if (pinchActive && touchCount === 2) {
       e.preventDefault();
       const mid = getMid(e.touches);
       const dist = getDist(e.touches);
@@ -204,12 +251,27 @@ export function setupPanAndPinch() {
       }
       lastDist = dist;
       lastMid = mid;
+    } else if (!pinchActive && touchDragActive && touchCount === 1 && isDragging) {
+      const touch = e.touches[0];
+      const vpt = canvas.viewportTransform;
+      if (!vpt) return;
+      e.preventDefault();
+      vpt[4] += (touch.clientX - lastClient.x);
+      vpt[5] += (touch.clientY - lastClient.y);
+      lastClient = { x: touch.clientX, y: touch.clientY };
+      canvas.requestRenderAll();
+      updateDesignInfo();
     }
   }, { passive: false });
 
   el.addEventListener('touchend', (e) => {
-    if (e.touches.length < 2) {
+    const touchCount = e.touches.length;
+    if (touchCount < 2) {
       pinchActive = false;
+      lastDist = 0;
+    }
+    if (touchCount === 0) {
+      endDrag();
     }
   }, { passive: false });
 
