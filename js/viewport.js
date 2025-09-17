@@ -122,7 +122,10 @@ export function setupPanAndPinch() {
   if (!canvas) return;
 
   const el = canvas.upperCanvasEl;
-  const computeShouldPan = (target) => !isFabricEditing() && (canvasState.spaceDown || canvasState.handMode || !target);
+  const computeShouldPan = (target) => {
+    if (canvasState.multiSelectMode) return false;
+    return !isFabricEditing() && (canvasState.spaceDown || canvasState.handMode || !target);
+  };
   let isDragging = false;
   let lastClient = { x: 0, y: 0 };
   let pinchActive = false;

@@ -75,7 +75,7 @@ label.chk{ gap:6px; }
 
 /* Zoom HUD */
 .hud button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; cursor:pointer; }
-#btnHandHUD.active{ background:#e5e7eb; }
+#btnHandHUD.active, #btnMultiHUD.active{ background:#e5e7eb; }
 
 /* Drawer behavior (desktop) */
 @media (min-width: 768px){

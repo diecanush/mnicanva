@@ -11,6 +11,8 @@ export const canvasState = {
   autoCenter: true,
   handMode: false,
   spaceDown: false,
+  multiSelectMode: false,
+  multiSelectBuffer: [],
 };
 
 export function isFabricEditing() {
