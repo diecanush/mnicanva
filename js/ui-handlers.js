@@ -1256,6 +1256,120 @@ function overrideOpenersForMobile() {
   btnOpenHelp?.addEventListener('click', toHelp);
   btnCloseHelp?.addEventListener('click', toHelp);
 }
+
+function initTouchMultiSelect() {
+  const canvas = canvasState.canvas;
+  const { fabric } = window;
+  if (!canvas || !fabric || typeof fabric.ActiveSelection !== 'function') return;
+  if (canvas.__miniCanvaTouchMultiSelect) return;
+  canvas.__miniCanvaTouchMultiSelect = true;
+
+  let lastTouchStartedOnObject = false;
+  let lastPointerWasTouch = false;
+  let syncingSelection = false;
+
+  const isTouchLike = (event) => {
+    if (!event) return false;
+    if (event.touches && event.touches.length) return true;
+    if (event.changedTouches && event.changedTouches.length) return true;
+    const { pointerType, type } = event;
+    if (typeof pointerType === 'string') return pointerType === 'touch';
+    if (typeof pointerType === 'number') return pointerType === 2;
+    return typeof type === 'string' && type.startsWith('touch');
+  };
+
+  const filterExisting = (items) => {
+    if (!Array.isArray(items) || !items.length) return [];
+    const existing = new Set(canvas.getObjects());
+    return items.filter((obj) => existing.has(obj));
+  };
+
+  const applyBufferSelection = () => {
+    if (!canvasState.multiSelectMode) return;
+    const buffer = filterExisting(canvasState.multiSelectBuffer);
+    canvasState.multiSelectBuffer = buffer;
+    if (buffer.length === 0) {
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      return;
+    }
+    if (buffer.length === 1) {
+      canvas.setActiveObject(buffer[0]);
+      canvas.requestRenderAll();
+      return;
+    }
+    syncingSelection = true;
+    const selection = new fabric.ActiveSelection(buffer, { canvas });
+    canvas.setActiveObject(selection);
+    canvas.requestRenderAll();
+    syncingSelection = false;
+  };
+
+  canvas.on('mouse:down', (opt) => {
+    const evt = opt?.e;
+    const touch = isTouchLike(evt);
+    lastPointerWasTouch = touch;
+    if (!touch) {
+      lastTouchStartedOnObject = false;
+      return;
+    }
+    lastTouchStartedOnObject = !!opt?.target;
+  });
+
+  const mergeSelectionFromTouch = (opt) => {
+    if (!canvasState.multiSelectMode || syncingSelection) return;
+    const evt = opt?.e;
+    if (!isTouchLike(evt)) return;
+
+    const activeObjects = typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : [];
+    if (!activeObjects.length) return;
+
+    const existing = filterExisting(canvasState.multiSelectBuffer);
+    const merged = new Set(existing);
+    let changed = false;
+    activeObjects.forEach((obj) => {
+      if (!merged.has(obj)) {
+        merged.add(obj);
+        changed = true;
+      }
+    });
+
+    const nextBuffer = Array.from(merged);
+    if (!changed && nextBuffer.length === existing.length) return;
+
+    canvasState.multiSelectBuffer = nextBuffer;
+    if (nextBuffer.length > 1) {
+      syncingSelection = true;
+      const selection = new fabric.ActiveSelection(nextBuffer, { canvas });
+      canvas.setActiveObject(selection);
+      canvas.requestRenderAll();
+      syncingSelection = false;
+    }
+  };
+
+  canvas.on('selection:created', mergeSelectionFromTouch);
+  canvas.on('selection:updated', mergeSelectionFromTouch);
+
+  canvas.on('selection:cleared', (opt) => {
+    if (!canvasState.multiSelectMode) return;
+    const evt = opt?.e;
+    const touch = isTouchLike(evt) || lastPointerWasTouch;
+    if (!touch) return;
+    if (!lastTouchStartedOnObject && canvasState.multiSelectBuffer.length) {
+      canvasState.multiSelectBuffer = [];
+    }
+  });
+
+  canvas.on('object:removed', (opt) => {
+    if (!Array.isArray(canvasState.multiSelectBuffer) || !canvasState.multiSelectBuffer.length) return;
+    const removed = opt?.target;
+    const filtered = filterExisting(canvasState.multiSelectBuffer).filter((obj) => obj && obj !== removed);
+    if (filtered.length === canvasState.multiSelectBuffer.length) return;
+    canvasState.multiSelectBuffer = filtered;
+    if (!canvasState.multiSelectMode) return;
+    applyBufferSelection();
+  });
+}
 export function setupUIHandlers() {
   applyDialogFallback();
   window.addEventListener('resize', setHeaderHeight);
@@ -1440,6 +1554,17 @@ export function setupUIHandlers() {
     c.defaultCursor = canvasState.handMode ? 'grab' : 'default';
     document.getElementById('btnHandHUD')?.classList.toggle('active', canvasState.handMode);
   });
+  const btnMultiHUD = document.getElementById('btnMultiHUD');
+  btnMultiHUD?.addEventListener('click', () => {
+    const next = !canvasState.multiSelectMode;
+    canvasState.multiSelectMode = next;
+    canvasState.multiSelectBuffer = [];
+    btnMultiHUD.classList.toggle('active', next);
+  });
+
+  if (canvasState.canvas) {
+    initTouchMultiSelect();
+  }
 
   if ('ResizeObserver' in window) {
     const ro = new ResizeObserver(() => { if (canvasState.autoCenter) fitToViewport(true); });
