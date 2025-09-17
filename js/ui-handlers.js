@@ -1096,6 +1096,28 @@ export function syncShapeControlsFromSelection() {
   if (swEl) swEl.value = obj.strokeWidth ?? 0;
   if (rEl) rEl.value = obj.rx ?? 0;
 }
+
+export function syncOpacityControlFromSelection() {
+  const control = document.getElementById('opacityControl');
+  if (!control) return;
+  const valueEl = document.getElementById('opacityValue');
+  const canvas = canvasState.canvas;
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+  const hasSingle = !!activeObject && activeObject.type !== 'activeSelection' && activeObjects.length === 1;
+
+  let opacity = 1;
+  if (hasSingle && typeof activeObject.opacity === 'number' && Number.isFinite(activeObject.opacity)) {
+    opacity = activeObject.opacity;
+  }
+
+  const normalized = Math.min(1, Math.max(0, opacity));
+  const percentage = Math.round(normalized * 100);
+
+  control.value = `${percentage}`;
+  control.disabled = !hasSingle;
+  if (valueEl) valueEl.textContent = `${percentage}%`;
+}
 let isMobileUI = false;
 let leftPH;
 let rightPH;
@@ -1309,6 +1331,38 @@ export function setupUIHandlers() {
   document.getElementById('btnBwd')?.addEventListener('click', sendBackwards);
   document.getElementById('btnDup')?.addEventListener('click', duplicateActive);
   document.getElementById('btnDel')?.addEventListener('click', removeActive);
+
+  const opacityControl = document.getElementById('opacityControl');
+  const opacityValue = document.getElementById('opacityValue');
+  if (opacityControl) {
+    opacityControl.addEventListener('input', () => {
+      const canvas = canvasState.canvas;
+      let raw = parseInt(opacityControl.value, 10);
+      if (!Number.isFinite(raw)) raw = 0;
+      const clamped = Math.min(100, Math.max(0, raw));
+      if (`${clamped}` !== opacityControl.value) opacityControl.value = `${clamped}`;
+      if (opacityValue) opacityValue.textContent = `${clamped}%`;
+
+      if (!canvas) return;
+      const activeObject = canvas.getActiveObject ? canvas.getActiveObject() : null;
+      const activeObjects = canvas.getActiveObjects ? canvas.getActiveObjects() : [];
+      const hasSingle = !!activeObject && activeObject.type !== 'activeSelection' && activeObjects.length === 1;
+      opacityControl.disabled = !hasSingle;
+      if (!hasSingle || !activeObject) return;
+
+      const opacity = clamped / 100;
+      activeObject.set({ opacity });
+      canvas.requestRenderAll();
+    });
+  }
+
+  const opacityCanvas = canvasState.canvas;
+  if (opacityCanvas) {
+    opacityCanvas.on('selection:created', syncOpacityControlFromSelection);
+    opacityCanvas.on('selection:updated', syncOpacityControlFromSelection);
+    opacityCanvas.on('selection:cleared', syncOpacityControlFromSelection);
+  }
+  syncOpacityControlFromSelection();
 
   document.getElementById('alignLeft')?.addEventListener('click', () => alignCanvas('left'));
   document.getElementById('alignCenterH')?.addEventListener('click', () => alignCanvas('centerH'));
