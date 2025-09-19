@@ -404,9 +404,123 @@ function applyTextboxControlVisibility(textbox) {
   textbox.setControlsVisibility({ ...TEXTBOX_CONTROL_VISIBILITY });
 }
 
+function normalizeColorToHex(color, fallback = null) {
+  if (typeof color !== 'string') return fallback;
+  const trimmed = color.trim();
+  if (!trimmed) return fallback;
+
+  const hex6 = trimmed.match(/^#?[0-9a-fA-F]{6}$/);
+  if (hex6) {
+    const value = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+    return `#${value.toLowerCase()}`;
+  }
+
+  const hex3 = trimmed.match(/^#?[0-9a-fA-F]{3}$/);
+  if (hex3) {
+    const raw = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+    const expanded = raw.split('').map((ch) => `${ch}${ch}`).join('');
+    return `#${expanded.toLowerCase()}`;
+  }
+
+  return fallback;
+}
+
+function getTextBackgroundControls() {
+  return {
+    colorInput: document.getElementById('inpTextBg'),
+    noneCheckbox: document.getElementById('chkTextBgNone'),
+  };
+}
+
+function getTextBackgroundControlValues() {
+  const { colorInput, noneCheckbox } = getTextBackgroundControls();
+  const color = colorInput?.value || '#ffffff';
+  const isNone = !!noneCheckbox?.checked;
+  return { color, isNone };
+}
+
+function applyBackgroundColorToTextbox(textbox, { color, isNone }) {
+  if (!textbox || textbox.type !== 'textbox') return;
+  const backgroundColor = isNone ? '' : (color || '');
+  textbox.set('backgroundColor', backgroundColor);
+  if (typeof textbox.initDimensions === 'function') textbox.initDimensions();
+  if (typeof textbox.setCoords === 'function') textbox.setCoords();
+}
+
+export function syncTextBackgroundControlsFromSelection() {
+  const { colorInput, noneCheckbox } = getTextBackgroundControls();
+  if (!colorInput || !noneCheckbox) return;
+
+  const canvas = canvasState.canvas;
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+  const hasSingleTextbox = !!activeObject && activeObject.type === 'textbox' && activeObjects.length === 1;
+
+  let hasBackground = false;
+
+  if (hasSingleTextbox) {
+    const raw = activeObject.backgroundColor;
+    if (raw !== undefined && raw !== null) {
+      const str = `${raw}`.trim();
+      if (str && str !== 'transparent') {
+        let parsedColor = null;
+        let alpha = 1;
+        const { fabric } = window;
+        if (fabric?.Color) {
+          try {
+            const color = new fabric.Color(str);
+            alpha = typeof color.getAlpha === 'function' ? color.getAlpha() : 1;
+            parsedColor = `#${color.toHex()}`;
+          } catch (error) {
+            parsedColor = normalizeColorToHex(str, null);
+          }
+        } else {
+          parsedColor = normalizeColorToHex(str, null);
+        }
+        if (alpha > 0 && parsedColor) {
+          hasBackground = true;
+          colorInput.value = parsedColor;
+          colorInput.dataset.lastColor = parsedColor;
+        }
+      }
+    }
+    noneCheckbox.checked = !hasBackground;
+  } else {
+    noneCheckbox.checked = false;
+  }
+
+  noneCheckbox.disabled = !hasSingleTextbox;
+  colorInput.disabled = !hasSingleTextbox || noneCheckbox.checked;
+
+  if (!hasSingleTextbox) {
+    const stored = colorInput.dataset.lastColor;
+    if (stored) {
+      const normalized = normalizeColorToHex(stored, '#ffffff');
+      if (normalized) colorInput.value = normalized;
+    }
+  }
+}
+
+function applyTextBackgroundToSelection() {
+  const { color, isNone } = getTextBackgroundControlValues();
+  const canvas = canvasState.canvas;
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  if (activeObject && activeObject.type === 'textbox') {
+    applyBackgroundColorToTextbox(activeObject, { color, isNone });
+    canvas.requestRenderAll();
+  }
+  if (!isNone && color) {
+    const normalized = normalizeColorToHex(color, null);
+    const { colorInput } = getTextBackgroundControls();
+    if (colorInput && normalized) colorInput.dataset.lastColor = normalized;
+  }
+  syncTextBackgroundControlsFromSelection();
+}
+
 function addText() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
+  const { color: bgColor, isNone: bgNone } = getTextBackgroundControlValues();
   const textbox = new fabric.Textbox('Doble click para editar', {
     left: canvasState.baseW / 2,
     top: canvasState.baseH / 2,
@@ -419,14 +533,21 @@ function addText() {
     textAlign: currentAlign(),
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
+    backgroundColor: bgNone ? '' : bgColor,
   });
   applyTextboxControlVisibility(textbox);
   canvas.add(textbox);
+  applyBackgroundColorToTextbox(textbox, { color: bgColor, isNone: bgNone });
   canvas.setActiveObject(textbox);
   textbox.enterEditing();
   textbox.hiddenTextarea?.focus();
   canvas.requestRenderAll();
   updateSelInfo();
+  if (!bgNone) {
+    const { colorInput } = getTextBackgroundControls();
+    if (colorInput) colorInput.dataset.lastColor = normalizeColorToHex(bgColor, colorInput.value || '#ffffff');
+  }
+  syncTextBackgroundControlsFromSelection();
 }
 
 function applyTextProps() {
@@ -443,15 +564,18 @@ function applyTextProps() {
     textAlign: currentAlign(),
   });
   if (obj.type === 'textbox') {
+    const bgValues = getTextBackgroundControlValues();
+    applyBackgroundColorToTextbox(obj, bgValues);
+    if (!bgValues.isNone && bgValues.color) {
+      const { colorInput } = getTextBackgroundControls();
+      if (colorInput) colorInput.dataset.lastColor = normalizeColorToHex(bgValues.color, colorInput.value || '#ffffff');
+    }
     if (obj.splitByGrapheme) {
       obj.set('splitByGrapheme', false);
     }
-    if (typeof obj.initDimensions === 'function') {
-      obj.initDimensions();
-      obj.setCoords();
-    }
   }
   canvas.requestRenderAll();
+  syncTextBackgroundControlsFromSelection();
   updateSelInfo();
 }
 
@@ -1508,6 +1632,14 @@ export function setupUIHandlers() {
     });
   });
   document.getElementById('btnApplyText')?.addEventListener('click', applyTextProps);
+  const textBackgroundInput = document.getElementById('inpTextBg');
+  const textBackgroundNone = document.getElementById('chkTextBgNone');
+  textBackgroundInput?.addEventListener('input', () => {
+    applyTextBackgroundToSelection();
+  });
+  textBackgroundNone?.addEventListener('change', () => {
+    applyTextBackgroundToSelection();
+  });
   const selFont = document.getElementById('selFont');
   if (selFont) {
     selFont.addEventListener('change', async (e) => {
@@ -1612,6 +1744,14 @@ export function setupUIHandlers() {
     fontSizeCanvas.on('selection:cleared', syncFontSizeControlsFromSelection);
   }
   syncFontSizeControlsFromSelection();
+
+  const textBackgroundCanvas = canvasState.canvas;
+  if (textBackgroundCanvas) {
+    textBackgroundCanvas.on('selection:created', syncTextBackgroundControlsFromSelection);
+    textBackgroundCanvas.on('selection:updated', syncTextBackgroundControlsFromSelection);
+    textBackgroundCanvas.on('selection:cleared', syncTextBackgroundControlsFromSelection);
+  }
+  syncTextBackgroundControlsFromSelection();
 
   document.getElementById('alignLeft')?.addEventListener('click', () => alignCanvas('left'));
   document.getElementById('alignCenterH')?.addEventListener('click', () => alignCanvas('centerH'));
