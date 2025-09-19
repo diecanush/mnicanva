@@ -414,7 +414,7 @@ function addText() {
     originY: 'center',
     width: canvasState.baseW * 0.6,
     fontFamily: document.getElementById('selFont')?.value,
-    fontSize: parseInt(document.getElementById('inpSize')?.value || '64', 10),
+    fontSize: getFontSizeFromSlider(),
     fill: document.getElementById('inpColor')?.value,
     textAlign: currentAlign(),
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
@@ -436,7 +436,7 @@ function applyTextProps() {
   if (!obj || (obj.type !== 'i-text' && obj.type !== 'text' && obj.type !== 'textbox')) return;
   obj.set({
     fontFamily: document.getElementById('selFont')?.value,
-    fontSize: parseInt(document.getElementById('inpSize')?.value || '64', 10),
+    fontSize: getFontSizeFromSlider(),
     fill: document.getElementById('inpColor')?.value,
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
@@ -466,15 +466,29 @@ function clampFontSizeValue(value) {
     return Number.isFinite(parsed) ? Math.round(parsed) : null;
   };
 
-  const numberInput = document.getElementById('inpSize');
   const sliderInput = document.getElementById('sizeSlider');
-  const minCandidates = [parseLimit(numberInput?.min), parseLimit(sliderInput?.min)].filter((n) => n !== null);
-  const maxCandidates = [parseLimit(numberInput?.max), parseLimit(sliderInput?.max)].filter((n) => n !== null);
+  const minCandidates = [];
+  const maxCandidates = [];
+
+  const sliderMin = parseLimit(sliderInput?.min);
+  if (sliderMin !== null) minCandidates.push(sliderMin);
+
+  const sliderMax = parseLimit(sliderInput?.max);
+  if (sliderMax !== null) maxCandidates.push(sliderMax);
 
   if (minCandidates.length) next = Math.max(next, Math.max(...minCandidates));
   if (maxCandidates.length) next = Math.min(next, Math.min(...maxCandidates));
 
   return next;
+}
+
+function getFontSizeFromSlider(fallback = 64) {
+  const slider = document.getElementById('sizeSlider');
+  const rawValue = slider?.value ?? fallback;
+  const normalized = clampFontSizeValue(rawValue);
+  if (normalized !== null) return normalized;
+  const fallbackNormalized = clampFontSizeValue(fallback);
+  return fallbackNormalized !== null ? fallbackNormalized : 64;
 }
 
 function applyLiveFontSize(value) {
@@ -494,7 +508,6 @@ function applyLiveFontSize(value) {
 
 export function syncFontSizeControlsFromSelection() {
   const canvas = canvasState.canvas;
-  const numberInput = document.getElementById('inpSize');
   const sliderInput = document.getElementById('sizeSlider');
   const valueEl = document.getElementById('sizeValue');
   const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
@@ -506,14 +519,9 @@ export function syncFontSizeControlsFromSelection() {
     next = clampFontSizeValue(activeObject.fontSize);
   }
   if (next === null) {
-    next = clampFontSizeValue(numberInput?.value ?? sliderInput?.value ?? '64');
+    next = getFontSizeFromSlider();
   }
-  if (next === null) next = 64;
 
-  if (numberInput) {
-    numberInput.value = `${next}`;
-    numberInput.disabled = !hasSingleTextbox;
-  }
   if (sliderInput) {
     sliderInput.value = `${next}`;
     sliderInput.disabled = !hasSingleTextbox;
@@ -1521,23 +1529,15 @@ export function setupUIHandlers() {
     });
   }
 
-  const fontSizeInput = document.getElementById('inpSize');
   const fontSizeSlider = document.getElementById('sizeSlider');
   const fontSizeValue = document.getElementById('sizeValue');
   const reflectFontSize = (raw) => {
     const normalized = clampFontSizeValue(raw);
     if (normalized === null) return null;
-    if (fontSizeInput) fontSizeInput.value = `${normalized}`;
     if (fontSizeSlider) fontSizeSlider.value = `${normalized}`;
     if (fontSizeValue) fontSizeValue.textContent = `${normalized} px`;
     return normalized;
   };
-
-  fontSizeInput?.addEventListener('input', () => {
-    const normalized = reflectFontSize(fontSizeInput.value);
-    if (normalized === null) return;
-    applyLiveFontSize(normalized);
-  });
 
   fontSizeSlider?.addEventListener('input', () => {
     const normalized = reflectFontSize(fontSizeSlider.value);
