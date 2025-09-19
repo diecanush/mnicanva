@@ -393,11 +393,12 @@ function currentAlign() {
 function addText() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
-  const it = new fabric.IText('Doble click para editar', {
+  const textbox = new fabric.Textbox('Doble click para editar', {
     left: canvasState.baseW / 2,
     top: canvasState.baseH / 2,
     originX: 'center',
     originY: 'center',
+    width: canvasState.baseW * 0.6,
     fontFamily: document.getElementById('selFont')?.value,
     fontSize: parseInt(document.getElementById('inpSize')?.value || '64', 10),
     fill: document.getElementById('inpColor')?.value,
@@ -405,8 +406,14 @@ function addText() {
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
   });
-  canvas.add(it);
-  canvas.setActiveObject(it);
+  textbox.set({
+    lockScalingY: true,
+    splitByGrapheme: true,
+  });
+  canvas.add(textbox);
+  canvas.setActiveObject(textbox);
+  textbox.enterEditing();
+  textbox.hiddenTextarea?.focus();
   canvas.requestRenderAll();
   updateSelInfo();
 }
@@ -424,6 +431,10 @@ function applyTextProps() {
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
     textAlign: currentAlign(),
   });
+  if (obj.type === 'textbox' && typeof obj.initDimensions === 'function') {
+    obj.initDimensions();
+    obj.setCoords();
+  }
   canvas.requestRenderAll();
   updateSelInfo();
 }
