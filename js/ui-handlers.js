@@ -406,9 +406,6 @@ function addText() {
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
   });
-  textbox.set({
-    splitByGrapheme: true,
-  });
   textbox.setControlsVisibility({ mt: false, mb: false });
   canvas.add(textbox);
   canvas.setActiveObject(textbox);
@@ -431,9 +428,14 @@ function applyTextProps() {
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
     textAlign: currentAlign(),
   });
-  if (obj.type === 'textbox' && typeof obj.initDimensions === 'function') {
-    obj.initDimensions();
-    obj.setCoords();
+  if (obj.type === 'textbox') {
+    if (obj.splitByGrapheme) {
+      obj.set('splitByGrapheme', false);
+    }
+    if (typeof obj.initDimensions === 'function') {
+      obj.initDimensions();
+      obj.setCoords();
+    }
   }
   canvas.requestRenderAll();
   updateSelInfo();
