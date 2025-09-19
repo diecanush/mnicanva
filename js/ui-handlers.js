@@ -455,6 +455,72 @@ function applyTextProps() {
   updateSelInfo();
 }
 
+function clampFontSizeValue(value) {
+  const numeric = Number.parseFloat(`${value}`);
+  if (!Number.isFinite(numeric)) return null;
+  let next = Math.round(numeric);
+
+  const parseLimit = (limit) => {
+    if (limit === undefined || limit === null || `${limit}`.trim() === '') return null;
+    const parsed = Number.parseFloat(`${limit}`);
+    return Number.isFinite(parsed) ? Math.round(parsed) : null;
+  };
+
+  const numberInput = document.getElementById('inpSize');
+  const sliderInput = document.getElementById('sizeSlider');
+  const minCandidates = [parseLimit(numberInput?.min), parseLimit(sliderInput?.min)].filter((n) => n !== null);
+  const maxCandidates = [parseLimit(numberInput?.max), parseLimit(sliderInput?.max)].filter((n) => n !== null);
+
+  if (minCandidates.length) next = Math.max(next, Math.max(...minCandidates));
+  if (maxCandidates.length) next = Math.min(next, Math.min(...maxCandidates));
+
+  return next;
+}
+
+function applyLiveFontSize(value) {
+  const canvas = canvasState.canvas;
+  if (!canvas) return;
+  const normalized = clampFontSizeValue(value);
+  if (normalized === null) return;
+
+  const activeObject = canvas.getActiveObject ? canvas.getActiveObject() : null;
+  if (!activeObject || activeObject.type !== 'textbox') return;
+
+  activeObject.set('fontSize', normalized);
+  if (typeof activeObject.initDimensions === 'function') activeObject.initDimensions();
+  if (typeof activeObject.setCoords === 'function') activeObject.setCoords();
+  canvas.requestRenderAll();
+}
+
+export function syncFontSizeControlsFromSelection() {
+  const canvas = canvasState.canvas;
+  const numberInput = document.getElementById('inpSize');
+  const sliderInput = document.getElementById('sizeSlider');
+  const valueEl = document.getElementById('sizeValue');
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+  const hasSingleTextbox = !!activeObject && activeObject.type === 'textbox' && activeObjects.length === 1;
+
+  let next = null;
+  if (hasSingleTextbox && typeof activeObject.fontSize === 'number' && Number.isFinite(activeObject.fontSize)) {
+    next = clampFontSizeValue(activeObject.fontSize);
+  }
+  if (next === null) {
+    next = clampFontSizeValue(numberInput?.value ?? sliderInput?.value ?? '64');
+  }
+  if (next === null) next = 64;
+
+  if (numberInput) {
+    numberInput.value = `${next}`;
+    numberInput.disabled = !hasSingleTextbox;
+  }
+  if (sliderInput) {
+    sliderInput.value = `${next}`;
+    sliderInput.disabled = !hasSingleTextbox;
+  }
+  if (valueEl) valueEl.textContent = `${next} px`;
+}
+
 function addImage(file) {
   const canvas = canvasState.canvas;
   if (!canvas) return;
@@ -1455,6 +1521,30 @@ export function setupUIHandlers() {
     });
   }
 
+  const fontSizeInput = document.getElementById('inpSize');
+  const fontSizeSlider = document.getElementById('sizeSlider');
+  const fontSizeValue = document.getElementById('sizeValue');
+  const reflectFontSize = (raw) => {
+    const normalized = clampFontSizeValue(raw);
+    if (normalized === null) return null;
+    if (fontSizeInput) fontSizeInput.value = `${normalized}`;
+    if (fontSizeSlider) fontSizeSlider.value = `${normalized}`;
+    if (fontSizeValue) fontSizeValue.textContent = `${normalized} px`;
+    return normalized;
+  };
+
+  fontSizeInput?.addEventListener('input', () => {
+    const normalized = reflectFontSize(fontSizeInput.value);
+    if (normalized === null) return;
+    applyLiveFontSize(normalized);
+  });
+
+  fontSizeSlider?.addEventListener('input', () => {
+    const normalized = reflectFontSize(fontSizeSlider.value);
+    if (normalized === null) return;
+    applyLiveFontSize(normalized);
+  });
+
   document.getElementById('btnStartCrop')?.addEventListener('click', startCrop);
   const featherInput = document.getElementById('featherPx');
   const featherVal = document.getElementById('featherVal');
@@ -1514,6 +1604,14 @@ export function setupUIHandlers() {
     opacityCanvas.on('selection:cleared', syncOpacityControlFromSelection);
   }
   syncOpacityControlFromSelection();
+
+  const fontSizeCanvas = canvasState.canvas;
+  if (fontSizeCanvas) {
+    fontSizeCanvas.on('selection:created', syncFontSizeControlsFromSelection);
+    fontSizeCanvas.on('selection:updated', syncFontSizeControlsFromSelection);
+    fontSizeCanvas.on('selection:cleared', syncFontSizeControlsFromSelection);
+  }
+  syncFontSizeControlsFromSelection();
 
   document.getElementById('alignLeft')?.addEventListener('click', () => alignCanvas('left'));
   document.getElementById('alignCenterH')?.addEventListener('click', () => alignCanvas('centerH'));
