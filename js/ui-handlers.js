@@ -407,9 +407,9 @@ function addText() {
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
   });
   textbox.set({
-    lockScalingY: true,
     splitByGrapheme: true,
   });
+  textbox.setControlsVisibility({ mt: false, mb: false });
   canvas.add(textbox);
   canvas.setActiveObject(textbox);
   textbox.enterEditing();

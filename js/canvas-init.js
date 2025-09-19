@@ -115,6 +115,56 @@ export function updateSelInfo() {
   infoEl.textContent = `Selección: ${w}×${h}px (${pctW}%×${pctH}%)`;
 }
 
+function handleTextboxScaling(opt = {}) {
+  const target = opt?.target;
+  if (!target || target.type !== 'textbox') return;
+
+  const corner = opt.transform?.corner;
+  if (!corner) return;
+
+  if (corner === 'ml' || corner === 'mr') {
+    const nextWidth = (target.width || 0) * (target.scaleX || 1);
+    target.set({
+      width: nextWidth,
+      scaleX: 1,
+      scaleY: 1,
+    });
+    target.initDimensions?.();
+    target.setCoords();
+    return;
+  }
+
+  if (corner === 'tl' || corner === 'tr' || corner === 'bl' || corner === 'br') {
+    if (!target.__baseTextScale) {
+      target.__baseTextScale = {
+        fontSize: target.fontSize,
+        width: target.width,
+      };
+    }
+    const base = target.__baseTextScale;
+    const factor = Math.max(target.scaleX || 1, target.scaleY || 1);
+    target.set({
+      fontSize: (base.fontSize || target.fontSize) * factor,
+      width: (base.width || target.width || 0) * factor,
+      scaleX: 1,
+      scaleY: 1,
+    });
+    target.initDimensions?.();
+    target.setCoords();
+  }
+}
+
+function finalizeTextboxScaling(opt = {}) {
+  const target = opt?.target;
+  if (!target || target.type !== 'textbox') return;
+
+  delete target.__baseTextScale;
+  target.set({ scaleX: 1, scaleY: 1 });
+  const canvas = target.canvas || canvasState.canvas;
+  canvas?.requestRenderAll();
+  updateSelInfo();
+}
+
 export function initCanvas({
   onDuplicate,
   onCloseFontPanel,
@@ -252,6 +302,9 @@ export function initCanvas({
   canvas.on('selection:updated', updateSelInfo);
   canvas.on('selection:created', updateSelInfo);
   canvas.on('selection:cleared', updateSelInfo);
+
+  canvas.on('object:scaling', handleTextboxScaling);
+  canvas.on('object:scaled', finalizeTextboxScaling);
 
   if (typeof onCloseFontPanel === 'function') {
     canvas.on('text:editing:entered', onCloseFontPanel);
