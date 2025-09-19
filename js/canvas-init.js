@@ -122,6 +122,11 @@ function handleTextboxScaling(opt = {}) {
   const corner = opt.transform?.corner;
   if (!corner) return;
 
+  const anchor = target.getPointByOrigin(
+    opt.transform.originX,
+    opt.transform.originY,
+  );
+
   if (corner === 'ml' || corner === 'mr') {
     const nextWidth = (target.width || 0) * (target.scaleX || 1);
     target.set({
@@ -130,7 +135,22 @@ function handleTextboxScaling(opt = {}) {
       scaleY: 1,
     });
     target.initDimensions?.();
+    if (anchor) {
+      target.setPositionByOrigin(
+        anchor,
+        opt.transform.originX,
+        opt.transform.originY,
+      );
+    }
     target.setCoords();
+    if (opt.transform) {
+      opt.transform.scaleX = opt.transform.scaleY = 1;
+      if (opt.transform.original) {
+        opt.transform.original.scaleX = opt.transform.original.scaleY = 1;
+      }
+    }
+    target.canvas?.requestRenderAll();
+    updateSelInfo();
     return;
   }
 
@@ -150,7 +170,22 @@ function handleTextboxScaling(opt = {}) {
       scaleY: 1,
     });
     target.initDimensions?.();
+    if (anchor) {
+      target.setPositionByOrigin(
+        anchor,
+        opt.transform.originX,
+        opt.transform.originY,
+      );
+    }
     target.setCoords();
+    if (opt.transform) {
+      opt.transform.scaleX = opt.transform.scaleY = 1;
+      if (opt.transform.original) {
+        opt.transform.original.scaleX = opt.transform.original.scaleY = 1;
+      }
+    }
+    target.canvas?.requestRenderAll();
+    updateSelInfo();
   }
 }
 
