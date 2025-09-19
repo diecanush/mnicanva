@@ -390,6 +390,20 @@ function currentAlign() {
   return btn?.dataset?.align || 'left';
 }
 
+const TEXTBOX_CONTROL_VISIBILITY = {
+  mt: false,
+  mb: false,
+  tl: false,
+  tr: false,
+  bl: false,
+  br: false,
+};
+
+function applyTextboxControlVisibility(textbox) {
+  if (!textbox || textbox.type !== 'textbox' || typeof textbox.setControlsVisibility !== 'function') return;
+  textbox.setControlsVisibility({ ...TEXTBOX_CONTROL_VISIBILITY });
+}
+
 function addText() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
@@ -406,7 +420,7 @@ function addText() {
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
   });
-  textbox.setControlsVisibility({ mt: false, mb: false });
+  applyTextboxControlVisibility(textbox);
   canvas.add(textbox);
   canvas.setActiveObject(textbox);
   textbox.enterEditing();
@@ -1458,6 +1472,16 @@ export function setupUIHandlers() {
   document.getElementById('btnBwd')?.addEventListener('click', sendBackwards);
   document.getElementById('btnDup')?.addEventListener('click', duplicateActive);
   document.getElementById('btnDel')?.addEventListener('click', removeActive);
+
+  const canvas = canvasState.canvas;
+  if (canvas) {
+    canvas.on('object:added', (opt) => {
+      const target = opt?.target;
+      if (target?.type === 'textbox') {
+        applyTextboxControlVisibility(target);
+      }
+    });
+  }
 
   const opacityControl = document.getElementById('opacityControl');
   const opacityValue = document.getElementById('opacityValue');

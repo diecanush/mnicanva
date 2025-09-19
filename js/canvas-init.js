@@ -127,66 +127,31 @@ function handleTextboxScaling(opt = {}) {
     opt.transform.originY,
   );
 
-  if (corner === 'ml' || corner === 'mr') {
-    const nextWidth = (target.width || 0) * (target.scaleX || 1);
-    target.set({
-      width: nextWidth,
-      scaleX: 1,
-      scaleY: 1,
-    });
-    target.initDimensions?.();
-    if (anchor) {
-      target.setPositionByOrigin(
-        anchor,
-        opt.transform.originX,
-        opt.transform.originY,
-      );
-    }
-    target.setCoords();
-    if (opt.transform) {
-      opt.transform.scaleX = opt.transform.scaleY = 1;
-      if (opt.transform.original) {
-        opt.transform.original.scaleX = opt.transform.original.scaleY = 1;
-      }
-    }
-    target.canvas?.requestRenderAll();
-    updateSelInfo();
-    return;
-  }
+  if (corner !== 'ml' && corner !== 'mr') return;
 
-  if (corner === 'tl' || corner === 'tr' || corner === 'bl' || corner === 'br') {
-    if (!target.__baseTextScale) {
-      target.__baseTextScale = {
-        fontSize: target.fontSize,
-        width: target.width,
-      };
-    }
-    const base = target.__baseTextScale;
-    const factor = Math.max(target.scaleX || 1, target.scaleY || 1);
-    target.set({
-      fontSize: (base.fontSize || target.fontSize) * factor,
-      width: (base.width || target.width || 0) * factor,
-      scaleX: 1,
-      scaleY: 1,
-    });
-    target.initDimensions?.();
-    if (anchor) {
-      target.setPositionByOrigin(
-        anchor,
-        opt.transform.originX,
-        opt.transform.originY,
-      );
-    }
-    target.setCoords();
-    if (opt.transform) {
-      opt.transform.scaleX = opt.transform.scaleY = 1;
-      if (opt.transform.original) {
-        opt.transform.original.scaleX = opt.transform.original.scaleY = 1;
-      }
-    }
-    target.canvas?.requestRenderAll();
-    updateSelInfo();
+  const nextWidth = (target.width || 0) * (target.scaleX || 1);
+  target.set({
+    width: nextWidth,
+    scaleX: 1,
+    scaleY: 1,
+  });
+  target.initDimensions?.();
+  if (anchor) {
+    target.setPositionByOrigin(
+      anchor,
+      opt.transform.originX,
+      opt.transform.originY,
+    );
   }
+  target.setCoords();
+  if (opt.transform) {
+    opt.transform.scaleX = opt.transform.scaleY = 1;
+    if (opt.transform.original) {
+      opt.transform.original.scaleX = opt.transform.original.scaleY = 1;
+    }
+  }
+  target.canvas?.requestRenderAll();
+  updateSelInfo();
 }
 
 function finalizeTextboxScaling(opt = {}) {
