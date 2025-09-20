@@ -1417,12 +1417,24 @@ function buildMobileDockOnce() {
   setMobileDockCollapsed(false);
 }
 
-function switchMobileTab(which = 'tools') {
+function switchMobileTab(which = 'tools', toggleIfActive = false) {
   const dock = document.getElementById('mobileDock');
   if (!dock || !isMobileUI) return;
-  if (dock.classList.contains('collapsed')) setMobileDockCollapsed(false);
-  dock.querySelectorAll('.md-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
-  dock.querySelectorAll('.md-panel').forEach((p) => p.classList.toggle('active', (p.id === (which === 'tools' ? 'md-tools' : 'md-help'))));
+  const tabs = dock.querySelectorAll('.md-tab');
+  const panels = dock.querySelectorAll('.md-panel');
+  const isCollapsed = dock.classList.contains('collapsed');
+  const currentTab = dock.querySelector('.md-tab.active');
+  const alreadyActive = currentTab?.dataset.tab === which;
+
+  if (toggleIfActive && alreadyActive && !isCollapsed) {
+    setMobileDockCollapsed(true);
+    requestAnimationFrame(() => fitToViewport());
+    return;
+  }
+
+  if (isCollapsed) setMobileDockCollapsed(false);
+  tabs.forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
+  panels.forEach((p) => p.classList.toggle('active', (p.id === (which === 'tools' ? 'md-tools' : 'md-help'))));
   requestAnimationFrame(() => fitToViewport());
 }
 
@@ -1494,12 +1506,29 @@ function overrideOpenersForMobile() {
   const btnCloseTools = document.getElementById('btnCloseTools');
   const btnOpenHelp = document.getElementById('btnOpenHelp');
   const btnCloseHelp = document.getElementById('btnCloseHelp');
-  const toTools = (e) => { if (isMobileUI) { e.preventDefault(); switchMobileTab('tools'); } };
-  const toHelp = (e) => { if (isMobileUI) { e.preventDefault(); switchMobileTab('help'); } };
-  btnOpenTools?.addEventListener('click', toTools);
-  btnCloseTools?.addEventListener('click', toTools);
-  btnOpenHelp?.addEventListener('click', toHelp);
-  btnCloseHelp?.addEventListener('click', toHelp);
+  const toggleIfActive = (tab) => (e) => {
+    if (!isMobileUI) return;
+    e.preventDefault();
+    const dock = document.getElementById('mobileDock');
+    if (!dock) return;
+    const activeTab = dock.querySelector('.md-tab.active')?.dataset.tab;
+    const isCollapsed = dock.classList.contains('collapsed');
+    if (activeTab === tab && !isCollapsed) {
+      setMobileDockCollapsed(true);
+      requestAnimationFrame(() => fitToViewport());
+      return;
+    }
+    switchMobileTab(tab);
+  };
+  const switchWithToggle = (tab) => (e) => {
+    if (!isMobileUI) return;
+    e.preventDefault();
+    switchMobileTab(tab, true);
+  };
+  btnOpenTools?.addEventListener('click', toggleIfActive('tools'));
+  btnCloseTools?.addEventListener('click', switchWithToggle('tools'));
+  btnOpenHelp?.addEventListener('click', toggleIfActive('help'));
+  btnCloseHelp?.addEventListener('click', switchWithToggle('help'));
 }
 
 function initTouchMultiSelect() {
