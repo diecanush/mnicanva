@@ -79,12 +79,18 @@ function toggleDeskBar(e) {
   setHeaderHeight(true);
 }
 
+function syncAppColumns() {
+  const isRightPanelOpen = document.getElementById('rightPanel')?.classList.contains('open');
+  document.body.classList.toggle('help-closed', !isRightPanelOpen);
+}
+
 function syncDrawers() {
   const isDesktop = window.matchMedia('(min-width: 768px)').matches;
   if (isDesktop) {
     document.getElementById('leftPanel')?.classList.remove('open');
     document.getElementById('rightPanel')?.classList.remove('open');
   }
+  syncAppColumns();
 }
 function attachDrawerButtons() {
   const refreshViewport = () => {
@@ -95,20 +101,26 @@ function attachDrawerButtons() {
 
   document.getElementById('btnOpenTools')?.addEventListener('click', () => {
     document.getElementById('leftPanel')?.classList.toggle('open');
+    syncAppColumns();
     refreshViewport();
   });
   document.getElementById('btnCloseTools')?.addEventListener('click', () => {
     document.getElementById('leftPanel')?.classList.remove('open');
+    syncAppColumns();
     refreshViewport();
   });
   document.getElementById('btnOpenHelp')?.addEventListener('click', () => {
     document.getElementById('rightPanel')?.classList.add('open');
+    syncAppColumns();
     refreshViewport();
   });
   document.getElementById('btnCloseHelp')?.addEventListener('click', () => {
     document.getElementById('rightPanel')?.classList.remove('open');
+    syncAppColumns();
     refreshViewport();
   });
+
+  syncAppColumns();
 }
 
 export function injectGoogleFonts() {

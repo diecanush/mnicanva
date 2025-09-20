@@ -83,6 +83,7 @@ label.chk{ gap:6px; }
 @media (min-width: 768px){
   #leftPanel, #rightPanel{ display:flex; }
   #leftPanel:not(.open), #rightPanel:not(.open){ display:none; }
+  body.help-closed #app{ grid-template-columns: 280px 1fr; }
 }
 
 /* Mobile: columnas colapsan, dock debajo del lienzo */
