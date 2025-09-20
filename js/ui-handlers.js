@@ -336,6 +336,104 @@ export function duplicateActive() {
   });
 }
 
+function isActiveSelectionObject(obj) {
+  const { fabric } = window;
+  if (!obj) return false;
+  if (obj.type === 'activeSelection') return true;
+  if (fabric?.ActiveSelection && obj instanceof fabric.ActiveSelection) return true;
+  return false;
+}
+
+function isGroupObject(obj) {
+  const { fabric } = window;
+  if (!obj) return false;
+  if (obj.type === 'group') return true;
+  if (fabric?.Group && obj instanceof fabric.Group) return true;
+  return false;
+}
+
+function syncGroupButtonsFromSelection() {
+  const btnGroup = document.getElementById('btnGroup');
+  const btnUngroup = document.getElementById('btnUngroup');
+  if (!btnGroup && !btnUngroup) return;
+
+  const canvas = canvasState.canvas;
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+  const canGroup = activeObjects.length >= 2 || isActiveSelectionObject(activeObject);
+  const canUngroup = isGroupObject(activeObject);
+
+  if (btnGroup) btnGroup.disabled = !canGroup;
+  if (btnUngroup) btnUngroup.disabled = !canUngroup;
+}
+
+export function groupActiveSelection() {
+  const canvas = canvasState.canvas;
+  const { fabric } = window;
+  if (!canvas) return;
+
+  const activeObject = typeof canvas.getActiveObject === 'function' ? canvas.getActiveObject() : null;
+  const activeObjects = typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : [];
+
+  let selection = activeObject;
+  if (!isActiveSelectionObject(selection)) {
+    if (activeObjects.length < 2 || !fabric?.ActiveSelection) {
+      syncGroupButtonsFromSelection();
+      return;
+    }
+    selection = new fabric.ActiveSelection(activeObjects, { canvas });
+    canvas.setActiveObject(selection);
+  }
+
+  if (!selection || typeof selection.toGroup !== 'function') {
+    syncGroupButtonsFromSelection();
+    return;
+  }
+
+  const group = selection.toGroup();
+  if (group) {
+    canvas.setActiveObject(group);
+  }
+
+  canvasState.multiSelectBuffer = [];
+  canvas.requestRenderAll();
+  updateSelInfo();
+  syncGroupButtonsFromSelection();
+}
+
+export function ungroupActiveObject() {
+  const canvas = canvasState.canvas;
+  const { fabric } = window;
+  if (!canvas) return;
+
+  const activeObject = typeof canvas.getActiveObject === 'function' ? canvas.getActiveObject() : null;
+  if (!isGroupObject(activeObject) || typeof activeObject?.toActiveSelection !== 'function') {
+    syncGroupButtonsFromSelection();
+    return;
+  }
+
+  const selection = activeObject.toActiveSelection();
+  if (selection) {
+    canvas.setActiveObject(selection);
+  } else {
+    const current = typeof canvas.getActiveObject === 'function' ? canvas.getActiveObject() : null;
+    if (!isActiveSelectionObject(current)) {
+      const objs = typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : [];
+      if (objs.length > 1 && fabric?.ActiveSelection) {
+        const fallback = new fabric.ActiveSelection(objs, { canvas });
+        canvas.setActiveObject(fallback);
+      }
+    }
+  }
+
+  canvas.requestRenderAll();
+  updateSelInfo();
+  if (canvasState.multiSelectMode) {
+    canvasState.multiSelectBuffer = [];
+  }
+  syncGroupButtonsFromSelection();
+}
+
 function bringToFront() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
@@ -1869,6 +1967,8 @@ export function setupUIHandlers() {
   document.getElementById('btnBwd')?.addEventListener('click', sendBackwards);
   document.getElementById('btnDup')?.addEventListener('click', duplicateActive);
   document.getElementById('btnDel')?.addEventListener('click', removeActive);
+  document.getElementById('btnGroup')?.addEventListener('click', () => { groupActiveSelection(); });
+  document.getElementById('btnUngroup')?.addEventListener('click', () => { ungroupActiveObject(); });
 
   const canvas = canvasState.canvas;
   if (canvas) {
@@ -1878,7 +1978,11 @@ export function setupUIHandlers() {
         applyTextboxControlVisibility(target);
       }
     });
+    canvas.on('selection:created', syncGroupButtonsFromSelection);
+    canvas.on('selection:updated', syncGroupButtonsFromSelection);
+    canvas.on('selection:cleared', syncGroupButtonsFromSelection);
   }
+  syncGroupButtonsFromSelection();
 
   const opacityControl = document.getElementById('opacityControl');
   const opacityValue = document.getElementById('opacityValue');
