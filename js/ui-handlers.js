@@ -390,6 +390,26 @@ function currentAlign() {
   return btn?.dataset?.align || 'left';
 }
 
+const TEXT_TYPES = new Set(['textbox', 'i-text', 'text']);
+
+function isTextObject(obj) {
+  return !!obj && TEXT_TYPES.has(obj.type);
+}
+
+function syncTextAlignButtonsFromSelection() {
+  const canvas = canvasState.canvas;
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+  const hasSingleText = isTextObject(activeObject) && activeObjects.length === 1;
+  if (!hasSingleText) return;
+
+  const align = typeof activeObject.textAlign === 'string' ? activeObject.textAlign.toLowerCase() : 'left';
+  document.querySelectorAll('.btnAlign').forEach((button) => {
+    const btnAlign = (button.dataset?.align || 'left').toLowerCase();
+    button.classList.toggle('active', btnAlign === align);
+  });
+}
+
 const TEXTBOX_CONTROL_VISIBILITY = {
   mt: false,
   mb: false,
@@ -1637,6 +1657,22 @@ export function setupUIHandlers() {
       document.querySelectorAll('.btnAlign').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       btn.blur();
+
+      const canvas = canvasState.canvas;
+      const align = btn.dataset?.align;
+      const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+      const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+      const hasSingleText = isTextObject(activeObject) && activeObjects.length === 1;
+
+      if (hasSingleText && align) {
+        activeObject.set({ textAlign: align });
+        if (typeof activeObject.initDimensions === 'function') activeObject.initDimensions();
+        if (typeof activeObject.setCoords === 'function') activeObject.setCoords();
+        canvas.requestRenderAll();
+      }
+
+      updateSelInfo();
+      syncTextAlignButtonsFromSelection();
     });
   });
   document.getElementById('btnApplyText')?.addEventListener('click', applyTextProps);
@@ -1862,6 +1898,14 @@ export function setupUIHandlers() {
     textBackgroundCanvas.on('selection:cleared', syncTextBackgroundControlsFromSelection);
   }
   syncTextBackgroundControlsFromSelection();
+
+  const textAlignCanvas = canvasState.canvas;
+  if (textAlignCanvas) {
+    textAlignCanvas.on('selection:created', syncTextAlignButtonsFromSelection);
+    textAlignCanvas.on('selection:updated', syncTextAlignButtonsFromSelection);
+    textAlignCanvas.on('selection:cleared', syncTextAlignButtonsFromSelection);
+  }
+  syncTextAlignButtonsFromSelection();
 
   document.getElementById('alignLeft')?.addEventListener('click', () => alignCanvas('left'));
   document.getElementById('alignCenterH')?.addEventListener('click', () => alignCanvas('centerH'));
