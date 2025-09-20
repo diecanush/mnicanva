@@ -1640,6 +1640,116 @@ export function setupUIHandlers() {
     });
   });
   document.getElementById('btnApplyText')?.addEventListener('click', applyTextProps);
+
+  const textFillInput = document.getElementById('inpColor');
+  const textStrokeColorInput = document.getElementById('inpStrokeColor');
+  const textStrokeWidthInput = document.getElementById('inpStrokeWidth');
+
+  const getActiveTextbox = () => {
+    const canvas = canvasState.canvas;
+    const active = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+    return active && active.type === 'textbox' ? active : null;
+  };
+
+  const normalizeStrokeWidthValue = (value) => {
+    let numeric = Number.parseFloat(`${value}`);
+    if (!Number.isFinite(numeric)) numeric = 0;
+    numeric = Math.round(numeric);
+
+    const parseLimit = (limit) => {
+      if (limit === undefined || limit === null) return null;
+      const trimmed = `${limit}`.trim();
+      if (!trimmed) return null;
+      const parsed = Number.parseFloat(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const min = parseLimit(textStrokeWidthInput?.min);
+    if (min !== null) numeric = Math.max(numeric, min);
+
+    const max = parseLimit(textStrokeWidthInput?.max);
+    if (max !== null) numeric = Math.min(numeric, max);
+
+    if (numeric < 0) numeric = 0;
+    return numeric;
+  };
+
+  const comparableColor = (value) => {
+    if (value === undefined || value === null) return undefined;
+    return `${value}`.trim().toLowerCase();
+  };
+
+  const applyStrokeToTextbox = (textbox, { color, width } = {}) => {
+    const prevStroke = textbox.stroke;
+    const prevWidth = Number.isFinite(textbox.strokeWidth) ? textbox.strokeWidth : 0;
+
+    let nextWidth = width;
+    if (!Number.isFinite(nextWidth)) nextWidth = prevWidth;
+    nextWidth = normalizeStrokeWidthValue(nextWidth);
+
+    let nextStroke = color;
+    if (nextStroke === undefined) nextStroke = prevStroke;
+
+    if (nextWidth <= 0) {
+      nextWidth = 0;
+      nextStroke = undefined;
+    }
+
+    const strokeChanged = comparableColor(prevStroke) !== comparableColor(nextStroke);
+    const widthChanged = prevWidth !== nextWidth;
+
+    if (!strokeChanged && !widthChanged) return false;
+
+    textbox.set({ stroke: nextStroke, strokeWidth: nextWidth });
+
+    if (strokeChanged || widthChanged) {
+      if (typeof textbox.initDimensions === 'function') textbox.initDimensions();
+      if (typeof textbox.setCoords === 'function') textbox.setCoords();
+    }
+
+    return true;
+  };
+
+  const attachTextboxListener = (el, handler) => {
+    if (!el) return;
+    ['input', 'change'].forEach((evt) => el.addEventListener(evt, handler));
+  };
+
+  attachTextboxListener(textFillInput, () => {
+    const canvas = canvasState.canvas;
+    const textbox = getActiveTextbox();
+    if (!canvas || !textbox || !textFillInput) return;
+    const prevFill = comparableColor(textbox.fill);
+    const nextFill = comparableColor(textFillInput.value);
+    if (prevFill === nextFill) return;
+    textbox.set('fill', textFillInput.value);
+    canvas.requestRenderAll();
+    updateSelInfo();
+  });
+
+  attachTextboxListener(textStrokeColorInput, () => {
+    const canvas = canvasState.canvas;
+    const textbox = getActiveTextbox();
+    if (!canvas || !textbox || !textStrokeColorInput) return;
+    const didChange = applyStrokeToTextbox(textbox, { color: textStrokeColorInput.value });
+    if (!didChange) return;
+    canvas.requestRenderAll();
+    updateSelInfo();
+  });
+
+  attachTextboxListener(textStrokeWidthInput, () => {
+    const canvas = canvasState.canvas;
+    const textbox = getActiveTextbox();
+    if (!canvas || !textbox || !textStrokeWidthInput) return;
+    const normalizedWidth = normalizeStrokeWidthValue(textStrokeWidthInput.value);
+    if (`${normalizedWidth}` !== textStrokeWidthInput.value) textStrokeWidthInput.value = `${normalizedWidth}`;
+    const strokeColor = normalizedWidth > 0 ? textStrokeColorInput?.value ?? textbox.stroke : undefined;
+    const didChange = applyStrokeToTextbox(textbox, { color: strokeColor, width: normalizedWidth });
+    if (!didChange) return;
+    canvas.requestRenderAll();
+    updateSelInfo();
+  });
+
   const textBackgroundInput = document.getElementById('inpTextBg');
   const textBackgroundNone = document.getElementById('chkTextBgNone');
   textBackgroundInput?.addEventListener('input', () => {
