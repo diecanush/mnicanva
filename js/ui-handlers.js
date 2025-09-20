@@ -102,7 +102,7 @@ function attachDrawerButtons() {
     refreshViewport();
   });
   document.getElementById('btnOpenHelp')?.addEventListener('click', () => {
-    document.getElementById('rightPanel')?.classList.toggle('open');
+    document.getElementById('rightPanel')?.classList.add('open');
     refreshViewport();
   });
   document.getElementById('btnCloseHelp')?.addEventListener('click', () => {

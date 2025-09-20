@@ -82,6 +82,7 @@ label.chk{ gap:6px; }
 /* Drawer behavior (desktop) */
 @media (min-width: 768px){
   #leftPanel, #rightPanel{ display:flex; }
+  #leftPanel:not(.open), #rightPanel:not(.open){ display:none; }
 }
 
 /* Mobile: columnas colapsan, dock debajo del lienzo */
