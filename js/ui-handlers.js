@@ -73,6 +73,99 @@ function applyDialogFallback() {
 
 const mq = window.matchMedia('(min-width: 768px)');
 
+const TOOL_VISIBILITY_BASE_TOKENS = ['always', 'all', 'any', '*'];
+
+function collectSelectionTokens() {
+  const tokens = new Set(TOOL_VISIBILITY_BASE_TOKENS);
+  const canvas = canvasState.canvas;
+  const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
+  const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
+
+  if (!activeObject) {
+    tokens.add('none');
+    tokens.add('empty');
+    tokens.add('no-selection');
+    return { tokens, activeObject, activeObjects };
+  }
+
+  tokens.add('selected');
+  tokens.add('has-selection');
+  tokens.add('selection');
+  tokens.add('object');
+
+  const type = typeof activeObject.type === 'string' ? activeObject.type.toLowerCase() : '';
+  if (type) {
+    tokens.add(type);
+    tokens.add(`type:${type}`);
+  }
+
+  let selectionItems = Array.isArray(activeObjects) ? activeObjects.slice() : [];
+  if (type === 'activeselection' && selectionItems.length === 0 && Array.isArray(activeObject._objects)) {
+    selectionItems = activeObject._objects.slice();
+  }
+  if (!selectionItems.length && activeObject) selectionItems = [activeObject];
+  selectionItems = selectionItems.filter(Boolean);
+
+  const isMulti = selectionItems.length > 1;
+  tokens.add(isMulti ? 'multi' : 'single');
+  tokens.add(isMulti ? 'multiple' : 'solo');
+  if (type === 'activeselection') tokens.add('activeselection');
+
+  selectionItems.forEach((item) => {
+    const itemType = typeof item.type === 'string' ? item.type.toLowerCase() : '';
+    if (itemType) {
+      tokens.add(itemType);
+      tokens.add(`type:${itemType}`);
+    }
+    if (isTextObject(item)) {
+      tokens.add('text');
+      tokens.add('textbox');
+    }
+    if (itemType === 'image') tokens.add('image');
+    if (itemType === 'rect') tokens.add('rect');
+    if (itemType === 'group') tokens.add('group');
+  });
+
+  if (isTextObject(activeObject)) {
+    tokens.add('text');
+    tokens.add('textbox');
+  }
+  if (type === 'image') tokens.add('image');
+  if (type === 'rect') tokens.add('rect');
+  if (type === 'group') tokens.add('group');
+
+  return { tokens, activeObject, activeObjects };
+}
+
+function updateToolVisibility() {
+  const groups = document.querySelectorAll('#leftPanel .group');
+  if (!groups.length) return;
+
+  const { tokens } = collectSelectionTokens();
+
+  groups.forEach((group) => {
+    const raw = (group.dataset?.visibleFor || '').trim();
+    if (!raw) {
+      group.hidden = false;
+      group.removeAttribute('aria-hidden');
+      group.removeAttribute('inert');
+      return;
+    }
+
+    const needed = raw.split(/\s+/).map((token) => token.trim().toLowerCase()).filter(Boolean);
+    const shouldShow = needed.some((token) => tokens.has(token));
+
+    group.hidden = !shouldShow;
+    if (shouldShow) {
+      group.removeAttribute('aria-hidden');
+      group.removeAttribute('inert');
+    } else {
+      group.setAttribute('aria-hidden', 'true');
+      group.setAttribute('inert', '');
+    }
+  });
+}
+
 function toggleDeskBar(e) {
   const desk = document.getElementById('deskBar');
   if (desk) desk.style.display = e.matches ? 'flex' : 'none';
@@ -1434,6 +1527,7 @@ function applyShapeProps() {
 }
 
 export function syncShapeControlsFromSelection() {
+  updateToolVisibility();
   const canvas = canvasState.canvas;
   if (!canvas) return;
   const obj = canvas.getActiveObject();
@@ -1756,6 +1850,7 @@ function initTouchMultiSelect() {
 }
 export function setupUIHandlers() {
   applyDialogFallback();
+  updateToolVisibility();
   window.addEventListener('resize', setHeaderHeight);
   window.addEventListener('resize', syncDrawers);
   mq.addEventListener('change', toggleDeskBar);
