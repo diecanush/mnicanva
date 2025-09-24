@@ -1087,6 +1087,118 @@ function applyFeatherMaskToActive(px = 40, shape = 'rect') {
   img.src = maskSrc;
 }
 
+function sampleCornerColor(data, width, height, size = 8) {
+  const sampleSize = Math.max(1, Math.min(size, Math.min(width, height)));
+  const positions = [
+    { x: 0, y: 0 },
+    { x: Math.max(0, width - sampleSize), y: 0 },
+    { x: 0, y: Math.max(0, height - sampleSize) },
+    { x: Math.max(0, width - sampleSize), y: Math.max(0, height - sampleSize) },
+  ];
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+  positions.forEach(({ x, y }) => {
+    for (let j = y; j < y + sampleSize; j += 1) {
+      for (let i = x; i < x + sampleSize; i += 1) {
+        const idx = (j * width + i) * 4;
+        r += data[idx];
+        g += data[idx + 1];
+        b += data[idx + 2];
+        count += 1;
+      }
+    }
+  });
+  if (!count) return { r: 255, g: 255, b: 255 };
+  return { r: r / count, g: g / count, b: b / count };
+}
+
+function removeBackgroundFromActiveImage(tolerance = 60) {
+  const canvas = canvasState.canvas;
+  if (!canvas) return;
+  const target = canvas.getActiveObject();
+  if (!target || target.type !== 'image') {
+    alert('Seleccioná una imagen primero.');
+    return;
+  }
+  const maskSrc = target.__maskedSrc
+    || target._originalElement?.src
+    || target.toDataURL({ format: 'png' });
+  const origSrc = target.__origSrc
+    || target._originalElement?.src
+    || maskSrc;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const width = img.naturalWidth || img.width;
+    const height = img.naturalHeight || img.height;
+    if (!width || !height) {
+      alert('No se pudo procesar la imagen.');
+      return;
+    }
+    const canvasEl = document.createElement('canvas');
+    canvasEl.width = width;
+    canvasEl.height = height;
+    const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, width, height);
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const bg = sampleCornerColor(data, width, height);
+    const hardTol = Math.max(0, Math.min(765, Number(tolerance) || 0));
+    const softTol = hardTol + 60;
+    for (let i = 0; i < data.length; i += 4) {
+      const dr = Math.abs(data[i] - bg.r);
+      const dg = Math.abs(data[i + 1] - bg.g);
+      const db = Math.abs(data[i + 2] - bg.b);
+      const delta = dr + dg + db;
+      if (delta <= hardTol) {
+        data[i + 3] = 0;
+      } else if (delta < softTol) {
+        const ratio = (delta - hardTol) / (softTol - hardTol || 1);
+        data[i + 3] = Math.round(data[i + 3] * ratio);
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    const dataURL = canvasEl.toDataURL('image/png');
+    const center = target.getCenterPoint();
+    const angle = target.angle || 0;
+    const dispW = target.getScaledWidth();
+    const dispH = target.getScaledHeight();
+    const idx = canvas.getObjects().indexOf(target);
+    if (!target.__origSrc && origSrc) target.__origSrc = origSrc;
+    canvas.remove(target);
+    fabric.Image.fromURL(dataURL, (img2) => {
+      img2.__origSrc = origSrc;
+      img2.__maskedSrc = dataURL;
+      img2.set({
+        originX: 'center',
+        originY: 'center',
+        left: center.x,
+        top: center.y,
+        angle,
+        flipX: target.flipX,
+        flipY: target.flipY,
+        skewX: target.skewX,
+        skewY: target.skewY,
+      });
+      const sx = dispW / img2.width;
+      const sy = dispH / img2.height;
+      img2.set({ scaleX: sx, scaleY: sy });
+      if (idx >= 0) {
+        canvas.insertAt(img2, idx, true);
+      } else {
+        canvas.add(img2);
+      }
+      canvas.setActiveObject(img2);
+      canvas.requestRenderAll();
+      updateSelInfo();
+    }, { crossOrigin: 'anonymous' });
+  };
+  img.onerror = () => alert('No se pudo procesar la imagen para quitar el fondo.');
+  img.src = maskSrc;
+}
+
 function removeFeatherMaskFromActive() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
@@ -2058,6 +2170,22 @@ export function setupUIHandlers() {
   });
 
   document.getElementById('btnStartCrop')?.addEventListener('click', startCrop);
+  const bgTolInput = document.getElementById('bgRemoveTolerance');
+  const bgTolVal = document.getElementById('bgTolVal');
+  const reflectBgTolerance = () => {
+    if (!bgTolInput) return;
+    let raw = parseInt(bgTolInput.value, 10);
+    if (!Number.isFinite(raw)) raw = 0;
+    const clamped = Math.max(0, Math.min(400, raw));
+    if (`${clamped}` !== bgTolInput.value) bgTolInput.value = `${clamped}`;
+    if (bgTolVal) bgTolVal.textContent = `${clamped}`;
+  };
+  bgTolInput?.addEventListener('input', reflectBgTolerance);
+  reflectBgTolerance();
+  document.getElementById('btnRemoveBg')?.addEventListener('click', () => {
+    const tol = parseInt(bgTolInput?.value || '60', 10) || 0;
+    removeBackgroundFromActiveImage(tol);
+  });
   const featherInput = document.getElementById('featherPx');
   const featherVal = document.getElementById('featherVal');
   featherInput?.addEventListener('input', () => { if (featherVal) featherVal.textContent = `${featherInput.value} px`; });
