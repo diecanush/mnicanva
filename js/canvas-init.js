@@ -314,6 +314,7 @@ export function initCanvas({
   if (typeof onSelectionChange === 'function') {
     canvas.on('selection:updated', onSelectionChange);
     canvas.on('selection:created', onSelectionChange);
+    canvas.on('selection:cleared', onSelectionChange);
   }
 
   updateDesignInfo();
