@@ -103,6 +103,7 @@ const CLIPBOARD_BASE_OFFSET = 24;
 const CLIPBOARD_MAX_OFFSET = 240;
 
 let historyDebounceTimer = null;
+let renderDebounceTimer = null;
 
 function isInputLikeElement(el) {
   if (!el) return false;
@@ -1348,7 +1349,7 @@ function applyLiveFontSize(value) {
   activeObject.set('fontSize', normalized);
   if (typeof activeObject.initDimensions === 'function') activeObject.initDimensions();
   if (typeof activeObject.setCoords === 'function') activeObject.setCoords();
-  canvas.requestRenderAll();
+  requestAnimationFrame(() => canvas.requestRenderAll());
 }
 
 export function syncFontSizeControlsFromSelection() {
@@ -1379,26 +1380,40 @@ function addImage(file) {
   if (!canvas) return;
   const reader = new FileReader();
   reader.onload = () => {
-    fabric.Image.fromURL(reader.result, (img) => {
-      const maxW = canvasState.baseW * 0.9;
-      const maxH = canvasState.baseH * 0.9;
-      const s = Math.min(maxW / img.width, maxH / img.height, 1);
-      img.set({
-        left: canvasState.baseW / 2,
-        top: canvasState.baseH / 2,
-        originX: 'center',
-        originY: 'center',
-        scaleX: s,
-        scaleY: s,
-        cornerStyle: 'circle',
-      });
-      if (!img.__origSrc) img.__origSrc = reader.result;
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.requestRenderAll();
-      updateSelInfo();
-      scheduleHistorySnapshot('add-image');
-    }, { crossOrigin: 'anonymous' });
+    try {
+      fabric.Image.fromURL(reader.result, (img) => {
+        try {
+          const maxW = canvasState.baseW * 0.9;
+          const maxH = canvasState.baseH * 0.9;
+          const s = Math.min(maxW / img.width, maxH / img.height, 1);
+          img.set({
+            left: canvasState.baseW / 2,
+            top: canvasState.baseH / 2,
+            originX: 'center',
+            originY: 'center',
+            scaleX: s,
+            scaleY: s,
+            cornerStyle: 'circle',
+          });
+          if (!img.__origSrc) img.__origSrc = reader.result;
+          canvas.add(img);
+          canvas.setActiveObject(img);
+          canvas.requestRenderAll();
+          updateSelInfo();
+          scheduleHistorySnapshot('add-image');
+        } catch (error) {
+          console.error('Error adding image to canvas:', error);
+          alert('Error al añadir la imagen al lienzo.');
+        }
+      }, { crossOrigin: 'anonymous' });
+    } catch (error) {
+      console.error('Error loading image:', error);
+      alert('Error al cargar la imagen.');
+    }
+  };
+  reader.onerror = () => {
+    console.error('FileReader error');
+    alert('Error al leer el archivo de imagen.');
   };
   reader.readAsDataURL(file);
 }
@@ -1842,46 +1857,57 @@ async function toGray(dataURL) {
 async function exportPNG() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
-  const mult = getScaleMultiplier();
-  const data = withNeutralVPT(() => canvas.toDataURL({
-    format: 'png',
-    left: 0,
-    top: 0,
-    width: canvasState.baseW,
-    height: canvasState.baseH,
-    multiplier: mult,
-  }));
-  const out = isMono() ? await toGray(data) : data;
-  const a = document.createElement('a');
-  a.href = out;
-  a.download = 'diseño.png';
-  a.click();
+  try {
+    const mult = getScaleMultiplier();
+    const data = withNeutralVPT(() => canvas.toDataURL({
+      format: 'png',
+      left: 0,
+      top: 0,
+      width: canvasState.baseW,
+      height: canvasState.baseH,
+      multiplier: mult,
+    }));
+    const out = isMono() ? await toGray(data) : data;
+    const a = document.createElement('a');
+    a.href = out;
+    a.download = 'diseño.png';
+    a.click();
+  } catch (error) {
+    console.error('Error exporting PNG:', error);
+    alert('Error al exportar PNG.');
+  }
 }
 
 async function exportPDF() {
   const canvas = canvasState.canvas;
   if (!canvas) return;
-  const mult = getScaleMultiplier();
-  const data = withNeutralVPT(() => canvas.toDataURL({
-    format: 'png',
-    left: 0,
-    top: 0,
-    width: canvasState.baseW,
-    height: canvasState.baseH,
-    multiplier: mult,
-  }));
-  const out = isMono() ? await toGray(data) : data;
-  const { jsPDF } = window.jspdf;
-  const w = canvasState.baseW * mult;
-  const h = canvasState.baseH * mult;
-  const pdf = new jsPDF({
-    unit: 'px',
-    format: [w, h],
-    orientation: (w >= h ? 'landscape' : 'portrait'),
-    compress: true,
-  });
-  pdf.addImage(out, 'JPEG', 0, 0, w, h, undefined, 'MEDIUM', 0.8);
-  pdf.save('diseño.pdf');
+  try {
+    const mult = getScaleMultiplier();
+    const data = withNeutralVPT(() => canvas.toDataURL({
+      format: 'png',
+      left: 0,
+      top: 0,
+      width: canvasState.baseW,
+      height: canvasState.baseH,
+      multiplier: mult,
+    }));
+    const out = isMono() ? await toGray(data) : data;
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) throw new Error('jsPDF not loaded');
+    const w = canvasState.baseW * mult;
+    const h = canvasState.baseH * mult;
+    const pdf = new jsPDF({
+      unit: 'px',
+      format: [w, h],
+      orientation: (w >= h ? 'landscape' : 'portrait'),
+      compress: true,
+    });
+    pdf.addImage(out, 'JPEG', 0, 0, w, h, undefined, 'MEDIUM', 0.8);
+    pdf.save('diseño.pdf');
+  } catch (error) {
+    console.error('Error exporting PDF:', error);
+    alert('Error al exportar PDF.');
+  }
 }
 
 function getPageDims(format, orientation) {
@@ -2526,7 +2552,13 @@ export function setupUIHandlers() {
   });
   document.getElementById('fileImg')?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
-    if (file) addImage(file);
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor, selecciona un archivo de imagen válido.');
+        return;
+      }
+      addImage(file);
+    }
     e.target.value = '';
   });
   document.querySelectorAll('.btnAlign').forEach((btn) => {
@@ -2783,8 +2815,12 @@ export function setupUIHandlers() {
 
       const opacity = clamped / 100;
       activeObject.set({ opacity });
-      canvas.requestRenderAll();
-      scheduleHistorySnapshot('opacity');
+      if (renderDebounceTimer) clearTimeout(renderDebounceTimer);
+      renderDebounceTimer = setTimeout(() => {
+        canvas.requestRenderAll();
+        scheduleHistorySnapshot('opacity');
+        renderDebounceTimer = null;
+      }, 100); // 100ms debounce
     });
   }
 
@@ -2858,7 +2894,14 @@ export function setupUIHandlers() {
     makeQR(url);
   });
   document.getElementById('btnMakeURL')?.addEventListener('click', () => {
-    const url = (document.getElementById('inURL')?.value || '').trim() || 'https://example.com';
+    let url = (document.getElementById('inURL')?.value || '').trim();
+    if (!url) url = 'https://example.com';
+    try {
+      new URL(url);
+    } catch {
+      alert('Por favor, ingresa una URL válida.');
+      return;
+    }
     makeQR(url);
   });
 

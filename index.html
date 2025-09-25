@@ -21,22 +21,22 @@
       <span id="selInfo">Selección: —</span>
     </div>
     <div class="right hud">
-      <button id="btnZoomOutHUD" title="Zoom -">−</button>
-      <span id="zoomLabel">100%</span>
-      <button id="btnZoomInHUD" title="Zoom +">+</button>
-      <button id="btnZoomResetHUD" title="Zoom 100%">1:1</button>
-      <button id="btnZoomFitHUD" title="Ajustar a pantalla">Fit</button>
-      <button id="btnHandHUD" title="Mano para mover">✋</button>
-      <button id="btnMultiHUD" title="Seleccionar varios">⬚+</button>
+      <button id="btnZoomOutHUD" title="Zoom -" aria-label="Reducir zoom">−</button>
+      <span id="zoomLabel" aria-label="Nivel de zoom actual">100%</span>
+      <button id="btnZoomInHUD" title="Zoom +" aria-label="Aumentar zoom">+</button>
+      <button id="btnZoomResetHUD" title="Zoom 100%" aria-label="Restablecer zoom al 100%">1:1</button>
+      <button id="btnZoomFitHUD" title="Ajustar a pantalla" aria-label="Ajustar zoom para encajar en pantalla">Fit</button>
+      <button id="btnHandHUD" title="Mano para mover" aria-label="Activar modo mano para mover lienzo">✋</button>
+      <button id="btnMultiHUD" title="Seleccionar varios" aria-label="Activar selección múltiple">⬚+</button>
     </div>
   </header>
 
   <main id="app">
     <!-- Panel izquierdo (herramientas) -->
-    <aside id="leftPanel" class="panel open">
+    <aside id="leftPanel" class="panel open" aria-label="Panel de herramientas">
       <div class="panel-head">
         <h2>Herramientas</h2>
-        <button id="btnCloseTools" class="close">✕</button>
+        <button id="btnCloseTools" class="close" aria-label="Cerrar panel de herramientas">✕</button>
       </div>
 
       <div class="panel-body">
@@ -281,18 +281,18 @@
     </aside>
 
     <!-- Lienzo -->
-    <section id="viewport">
-      <canvas id="stage"></canvas>
+    <section id="viewport" aria-label="Área de dibujo del lienzo">
+      <canvas id="stage" aria-label="Lienzo de dibujo"></canvas>
     </section>
 
     <!-- Dock móvil: las pestañas se construyen por JS y los paneles se mueven aquí -->
     <div id="mobileDock"></div>
 
     <!-- Panel derecho (ayuda) -->
-    <aside id="rightPanel" class="panel open">
+    <aside id="rightPanel" class="panel open" aria-label="Panel de ayuda">
       <div class="panel-head">
         <h2>Ayuda</h2>
-        <button id="btnCloseHelp" class="close">✕</button>
+        <button id="btnCloseHelp" class="close" aria-label="Cerrar panel de ayuda">✕</button>
       </div>
       <div class="panel-body">
         <p>Consejos rápidos:</p>

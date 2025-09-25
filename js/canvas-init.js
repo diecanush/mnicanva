@@ -72,46 +72,50 @@ export function addOrUpdatePaper() {
   const W = canvas.getWidth();
   const H = canvas.getHeight();
 
-  if (!canvasState.paperRect) {
-    canvasState.paperRect = new fabric.Rect({
-      left: 0,
-      top: 0,
-      width: W,
-      height: H,
-      fill: '#ffffff',
-      selectable: false,
-      evented: false,
-    });
-    canvas.add(canvasState.paperRect);
-  } else {
-    canvasState.paperRect.set({ width: W, height: H });
-    canvasState.paperRect.setCoords();
-  }
+  try {
+    if (!canvasState.paperRect) {
+      canvasState.paperRect = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: W,
+        height: H,
+        fill: '#ffffff',
+        selectable: false,
+        evented: false,
+      });
+      canvas.add(canvasState.paperRect);
+    } else {
+      canvasState.paperRect.set({ width: W, height: H });
+      canvasState.paperRect.setCoords();
+    }
 
-  if (!canvasState.paperShadowRect) {
-    canvasState.paperShadowRect = new fabric.Rect({
-      left: 0,
-      top: 0,
-      width: W,
-      height: H,
-      fill: canvasState.paperRect.fill,
-      selectable: false,
-      evented: false,
-      excludeFromExport: true,
-      shadow: new fabric.Shadow({
-        color: 'rgba(0,0,0,0.25)',
-        blur: 30,
-        offsetX: 0,
-        offsetY: 10,
-      }),
-    });
-    canvas.add(canvasState.paperShadowRect);
-  } else {
-    canvasState.paperShadowRect.set({ width: W, height: H, fill: canvasState.paperRect.fill });
-    canvasState.paperShadowRect.setCoords();
-  }
+    if (!canvasState.paperShadowRect) {
+      canvasState.paperShadowRect = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: W,
+        height: H,
+        fill: canvasState.paperRect.fill,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        shadow: new fabric.Shadow({
+          color: 'rgba(0,0,0,0.25)',
+          blur: 30,
+          offsetX: 0,
+          offsetY: 10,
+        }),
+      });
+      canvas.add(canvasState.paperShadowRect);
+    } else {
+      canvasState.paperShadowRect.set({ width: W, height: H, fill: canvasState.paperRect.fill });
+      canvasState.paperShadowRect.setCoords();
+    }
 
-  orderBackground();
+    orderBackground();
+  } catch (error) {
+    console.error('Error updating paper background:', error);
+  }
 }
 
 export function orderBackground() {
@@ -222,14 +226,21 @@ export function initCanvas({
 
   ensureFabricSerializationProps();
 
-  const canvas = new fabric.Canvas('stage', {
-    preserveObjectStacking: true,
-    backgroundColor: 'transparent',
-    selection: true,
-  });
-  canvas.setWidth(canvasState.baseW);
-  canvas.setHeight(canvasState.baseH);
-  canvasState.canvas = canvas;
+  let canvas;
+  try {
+    canvas = new fabric.Canvas('stage', {
+      preserveObjectStacking: true,
+      backgroundColor: 'transparent',
+      selection: true,
+    });
+    canvas.setWidth(canvasState.baseW);
+    canvas.setHeight(canvasState.baseH);
+    canvasState.canvas = canvas;
+  } catch (error) {
+    console.error('Error initializing canvas:', error);
+    alert('Error al inicializar el lienzo.');
+    return null;
+  }
   canvasState.history = [];
   canvasState.historyIndex = -1;
   canvasState.historyLock = false;
