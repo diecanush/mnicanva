@@ -62,6 +62,20 @@
           </div>
         </section>
 
+
+        <section class="group" data-visible-for="always">
+          <h3>Edición</h3>
+          <div class="row">
+            <button id="btnUndo" type="button">Deshacer</button>
+            <button id="btnRedo" type="button">Rehacer</button>
+          </div>
+          <div class="row">
+            <button id="btnCopy" type="button">Copiar</button>
+            <button id="btnPaste" type="button">Pegar</button>
+          </div>
+        </section>
+
+
         <section class="group" data-visible-for="none text">
           <h3>Texto</h3>
 
@@ -285,6 +299,8 @@
         <ul>
           <li>Espacio o botón ✋ para mover el lienzo.</li>
           <li>Ctrl/Cmd+D duplica el objeto.</li>
+          <li>Ctrl/Cmd+C copia la selección y Ctrl/Cmd+V la pega.</li>
+          <li>Ctrl/Cmd+Z deshace y Ctrl/Cmd+Shift+Z (o Ctrl/Cmd+Y) rehace.</li>
           <li>Eliminá objetos con Supr/Backspace (si no estás editando texto).</li>
         </ul>
       </div>

@@ -4,6 +4,7 @@ import {
   orderBackground,
   updateDesignInfo,
   updateSelInfo,
+  isFabricEditing,
 } from './canvas-init.js';
 import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js';
 
@@ -72,6 +73,489 @@ function applyDialogFallback() {
 }
 
 const mq = window.matchMedia('(min-width: 768px)');
+
+
+const SERIALIZE_PROPS = [
+  'id',
+  'name',
+  'rx',
+  'ry',
+  'strokeUniform',
+  'shadow',
+  'charSpacing',
+  'textBackgroundColor',
+  'paintFirst',
+  'globalCompositeOperation',
+  'cornerStyle',
+  'selectable',
+  'evented',
+  '__origSrc',
+  '__maskedSrc',
+  'splitByGrapheme',
+  'fontURL',
+];
+
+const HISTORY_LIMIT = 60;
+const HISTORY_DEBOUNCE_MS = 250;
+const CLIPBOARD_PREFIX = 'MINICANVA_CLIP:';
+const CLIPBOARD_VERSION = 1;
+const CLIPBOARD_BASE_OFFSET = 24;
+const CLIPBOARD_MAX_OFFSET = 240;
+
+let historyDebounceTimer = null;
+
+function isInputLikeElement(el) {
+  if (!el) return false;
+  const tag = (el.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+  if (el.isContentEditable) return true;
+  if (typeof el.closest === 'function') {
+    const editable = el.closest('[contenteditable="true"]');
+    if (editable) return true;
+  }
+  return false;
+}
+
+function ensureHistoryState() {
+  if (!Array.isArray(canvasState.history)) canvasState.history = [];
+  if (typeof canvasState.historyIndex !== 'number') {
+    canvasState.historyIndex = canvasState.history.length - 1;
+  }
+  if (canvasState.historyIndex >= canvasState.history.length) {
+    canvasState.historyIndex = canvasState.history.length - 1;
+  }
+  return canvasState.history;
+}
+
+function isHelperObject(obj) {
+  if (!obj) return false;
+  return (
+    obj === canvasState.paperRect
+    || obj === canvasState.paperShadowRect
+    || obj === canvasState.hGuide
+    || obj === canvasState.vGuide
+    || obj === canvasState.vignetteRect
+  );
+}
+
+function getDesignObjects(canvas) {
+  if (!canvas) return [];
+  return canvas.getObjects().filter((obj) => !isHelperObject(obj));
+}
+
+function parseHistorySnapshot(snapshot) {
+  if (!snapshot || typeof snapshot.data !== 'string') return null;
+  try {
+    return JSON.parse(snapshot.data);
+  } catch (error) {
+    console.warn('No se pudo interpretar el estado del historial.', error);
+    return null;
+  }
+}
+
+function refreshUndoButtonState() {
+  const btn = document.getElementById('btnUndo');
+  if (btn) btn.disabled = !canUndo();
+}
+
+function refreshRedoButtonState() {
+  const btn = document.getElementById('btnRedo');
+  if (btn) btn.disabled = !canRedo();
+}
+
+function refreshCopyButtonState() {
+  const btn = document.getElementById('btnCopy');
+  if (!btn) return;
+  btn.disabled = getSelectionObjects().length === 0;
+}
+
+function refreshPasteButtonState() {
+  const btn = document.getElementById('btnPaste');
+  if (!btn) return;
+  const systemAvailable = !!(navigator.clipboard && navigator.clipboard.readText);
+  const internalAvailable = !!(canvasState.clipboardData && Array.isArray(canvasState.clipboardData.objects));
+  btn.disabled = !systemAvailable && !internalAvailable;
+}
+
+function captureHistorySnapshot(reason = 'auto', { force = false } = {}) {
+  const canvas = canvasState.canvas;
+  if (!canvas) return false;
+  if (canvasState.historyLock) return false;
+
+  const history = ensureHistoryState();
+  const payload = {
+    objects: getDesignObjects(canvas).map((obj) => obj.toObject(SERIALIZE_PROPS)),
+    backgroundFill: canvasState.paperRect?.fill ?? null,
+    vignette: canvasState.vignetteRect ? canvasState.vignetteRect.toObject(SERIALIZE_PROPS) : null,
+  };
+
+  const serialized = JSON.stringify(payload);
+  const current = history[canvasState.historyIndex]?.data;
+  if (!force && current === serialized) return false;
+
+  if (canvasState.historyIndex < history.length - 1) {
+    history.splice(canvasState.historyIndex + 1);
+  }
+  history.push({ data: serialized });
+  if (history.length > HISTORY_LIMIT) {
+    const overflow = history.length - HISTORY_LIMIT;
+    history.splice(0, overflow);
+  }
+  canvasState.historyIndex = history.length - 1;
+  canvasState.history = history;
+  refreshUndoButtonState();
+  refreshRedoButtonState();
+  return true;
+}
+
+function scheduleHistorySnapshot(reason = 'auto', { force = false, immediate = false } = {}) {
+  if (canvasState.historyLock) return;
+  if (historyDebounceTimer) {
+    clearTimeout(historyDebounceTimer);
+    historyDebounceTimer = null;
+  }
+  if (immediate) {
+    captureHistorySnapshot(reason, { force });
+    return;
+  }
+  historyDebounceTimer = setTimeout(() => {
+    historyDebounceTimer = null;
+    captureHistorySnapshot(reason, { force });
+  }, HISTORY_DEBOUNCE_MS);
+}
+
+function canUndo() {
+  const history = ensureHistoryState();
+  return history.length > 0 && canvasState.historyIndex > 0;
+}
+
+function canRedo() {
+  const history = ensureHistoryState();
+  return history.length > 0 && canvasState.historyIndex < history.length - 1;
+}
+
+function resetClipboardShift() {
+  canvasState.clipboardShift = { x: CLIPBOARD_BASE_OFFSET, y: CLIPBOARD_BASE_OFFSET };
+}
+
+function getNextClipboardShift() {
+  if (!canvasState.clipboardShift) resetClipboardShift();
+  const current = { ...canvasState.clipboardShift };
+  const nextX = canvasState.clipboardShift.x + CLIPBOARD_BASE_OFFSET;
+  const nextY = canvasState.clipboardShift.y + CLIPBOARD_BASE_OFFSET;
+  canvasState.clipboardShift = {
+    x: nextX > CLIPBOARD_MAX_OFFSET ? CLIPBOARD_BASE_OFFSET : nextX,
+    y: nextY > CLIPBOARD_MAX_OFFSET ? CLIPBOARD_BASE_OFFSET : nextY,
+  };
+  return current;
+}
+
+function getSelectionObjects() {
+  const canvas = canvasState.canvas;
+  if (!canvas) return [];
+  const active = typeof canvas.getActiveObject === 'function' ? canvas.getActiveObject() : null;
+  if (!active) return [];
+  if (typeof active.getObjects === 'function') {
+    const members = active.getObjects();
+    if (Array.isArray(members) && members.length) return members.slice();
+  }
+  if (typeof canvas.getActiveObjects === 'function') {
+    const list = canvas.getActiveObjects();
+    if (Array.isArray(list) && list.length) return list.slice();
+  }
+  return active ? [active] : [];
+}
+
+function encodeStringToBase64(str) {
+  try {
+    if (typeof TextEncoder !== 'undefined') {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      bytes.forEach((b) => {
+        binary += String.fromCharCode(b);
+      });
+      return btoa(binary);
+    }
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (error) {
+    console.warn('Error al codificar texto en base64.', error);
+    return null;
+  }
+}
+
+function decodeStringFromBase64(str) {
+  try {
+    const binary = atob(str);
+    if (typeof TextDecoder !== 'undefined') {
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    }
+    return decodeURIComponent(escape(binary));
+  } catch (error) {
+    console.warn('Error al decodificar texto desde base64.', error);
+    return null;
+  }
+}
+
+function encodeClipboardPayload(payload) {
+  try {
+    const json = JSON.stringify(payload);
+    const base64 = encodeStringToBase64(json);
+    if (!base64) return null;
+    return `${CLIPBOARD_PREFIX}${base64}`;
+  } catch (error) {
+    console.warn('No se pudo serializar la selección para copiar.', error);
+    return null;
+  }
+}
+
+function decodeClipboardPayload(text) {
+  if (typeof text !== 'string' || !text.startsWith(CLIPBOARD_PREFIX)) return null;
+  const data = text.slice(CLIPBOARD_PREFIX.length);
+  try {
+    const decoded = decodeStringFromBase64(data);
+    if (!decoded) return null;
+    const payload = JSON.parse(decoded);
+    if (payload && payload.version === CLIPBOARD_VERSION && Array.isArray(payload.objects)) {
+      return payload;
+    }
+  } catch (error) {
+    console.warn('No se pudo leer el contenido del portapapeles.', error);
+  }
+  return null;
+}
+
+function setInternalClipboard(payload) {
+  if (!payload || !Array.isArray(payload.objects)) return;
+  canvasState.clipboardData = payload;
+  resetClipboardShift();
+  refreshPasteButtonState();
+}
+
+function applyHistorySnapshot(snapshot) {
+  const canvas = canvasState.canvas;
+  if (!canvas) return Promise.resolve(false);
+  const payload = parseHistorySnapshot(snapshot);
+  if (!payload) return Promise.resolve(false);
+
+  canvasState.historyLock = true;
+  if (historyDebounceTimer) {
+    clearTimeout(historyDebounceTimer);
+    historyDebounceTimer = null;
+  }
+
+  const existing = getDesignObjects(canvas);
+  existing.forEach((obj) => canvas.remove(obj));
+
+  if (payload.backgroundFill != null) {
+    if (canvasState.paperRect) canvasState.paperRect.set({ fill: payload.backgroundFill });
+    if (canvasState.paperShadowRect) canvasState.paperShadowRect.set({ fill: payload.backgroundFill });
+  }
+
+  if (canvasState.vignetteRect) {
+    canvas.remove(canvasState.vignetteRect);
+    canvasState.vignetteRect = null;
+  }
+
+  const restoreVignette = () => new Promise((resolve) => {
+    if (!payload.vignette) {
+      resolve();
+      return;
+    }
+    fabric.util.enlivenObjects([payload.vignette], (objects) => {
+      const vignette = objects[0];
+      if (vignette) {
+        vignette.selectable = false;
+        vignette.evented = false;
+        canvas.add(vignette);
+        canvasState.vignetteRect = vignette;
+      }
+      resolve();
+    }, 'fabric');
+  });
+
+  return restoreVignette()
+    .then(() => new Promise((resolve) => {
+      const objectsData = Array.isArray(payload.objects) ? payload.objects : [];
+      fabric.util.enlivenObjects(objectsData, (objects) => {
+        objects.forEach((obj) => {
+          canvas.add(obj);
+        });
+        orderBackground();
+        canvas.discardActiveObject();
+        canvasState.multiSelectBuffer = [];
+        canvas.requestRenderAll();
+        updateSelInfo();
+        updateToolVisibility();
+        syncGroupButtonsFromSelection();
+        syncOpacityControlFromSelection();
+        syncFontSizeControlsFromSelection();
+        syncTextBackgroundControlsFromSelection();
+        syncTextAlignButtonsFromSelection();
+        refreshCopyButtonState();
+        refreshPasteButtonState();
+        refreshUndoButtonState();
+        refreshRedoButtonState();
+        canvasState.historyLock = false;
+        resolve(true);
+      }, 'fabric');
+    }))
+    .catch((error) => {
+      console.warn('No se pudo restaurar el estado anterior.', error);
+      canvasState.historyLock = false;
+      return false;
+    });
+}
+
+async function undoHistory() {
+  if (!canUndo()) return;
+  const history = ensureHistoryState();
+  const nextIndex = Math.max(0, canvasState.historyIndex - 1);
+  const snapshot = history[nextIndex];
+  canvasState.historyIndex = nextIndex;
+  await applyHistorySnapshot(snapshot);
+  refreshUndoButtonState();
+  refreshRedoButtonState();
+}
+
+async function redoHistory() {
+  if (!canRedo()) return;
+  const history = ensureHistoryState();
+  const nextIndex = Math.min(history.length - 1, canvasState.historyIndex + 1);
+  const snapshot = history[nextIndex];
+  canvasState.historyIndex = nextIndex;
+  await applyHistorySnapshot(snapshot);
+  refreshUndoButtonState();
+  refreshRedoButtonState();
+}
+
+async function copySelectionToClipboard() {
+  const selection = getSelectionObjects();
+  if (!selection.length) return false;
+  const payload = {
+    version: CLIPBOARD_VERSION,
+    objects: selection.map((obj) => obj.toObject(SERIALIZE_PROPS)),
+  };
+  setInternalClipboard(payload);
+  const encoded = encodeClipboardPayload(payload);
+  if (encoded && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(encoded);
+    } catch (error) {
+      console.warn('No se pudo copiar al portapapeles del sistema.', error);
+    }
+  }
+  refreshCopyButtonState();
+  return true;
+}
+
+async function readSystemClipboard() {
+  if (!(navigator.clipboard && navigator.clipboard.readText)) return null;
+  try {
+    const text = await navigator.clipboard.readText();
+    return decodeClipboardPayload(text);
+  } catch (error) {
+    console.warn('No se pudo leer del portapapeles del sistema.', error);
+    return null;
+  }
+}
+
+async function pasteFromClipboard() {
+  const canvas = canvasState.canvas;
+  if (!canvas) return false;
+
+  let payload = canvasState.clipboardData;
+  const systemPayload = await readSystemClipboard();
+  if (systemPayload) {
+    payload = systemPayload;
+    setInternalClipboard(systemPayload);
+  }
+
+  if (!payload || !Array.isArray(payload.objects) || !payload.objects.length) {
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    fabric.util.enlivenObjects(payload.objects, (objects) => {
+      const shift = getNextClipboardShift();
+      objects.forEach((obj) => {
+        obj.set({
+          left: (obj.left || 0) + shift.x,
+          top: (obj.top || 0) + shift.y,
+          evented: true,
+        });
+        canvas.add(obj);
+      });
+      if (objects.length > 1 && window.fabric?.ActiveSelection) {
+        const selection = new fabric.ActiveSelection(objects, { canvas });
+        canvas.setActiveObject(selection);
+      } else if (objects[0]) {
+        canvas.setActiveObject(objects[0]);
+      }
+      canvas.requestRenderAll();
+      updateSelInfo();
+      scheduleHistorySnapshot('paste');
+      refreshCopyButtonState();
+      refreshPasteButtonState();
+      resolve(true);
+    }, 'fabric');
+  });
+}
+
+async function handleEditShortcut(e) {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  if (isInputLikeElement(document.activeElement) || isFabricEditing()) return;
+  const key = (e.key || '').toLowerCase();
+  if (!key) return;
+
+  if (key === 'c' && !e.shiftKey) {
+    const copied = await copySelectionToClipboard();
+    if (copied) e.preventDefault();
+    return;
+  }
+  if (key === 'v' && !e.shiftKey) {
+    await pasteFromClipboard();
+    e.preventDefault();
+    return;
+  }
+  if (key === 'z' && !e.shiftKey) {
+    await undoHistory();
+    e.preventDefault();
+    return;
+  }
+  if ((key === 'z' && e.shiftKey) || key === 'y') {
+    await redoHistory();
+    e.preventDefault();
+  }
+}
+
+function initHistoryTracking() {
+  const canvas = canvasState.canvas;
+  if (!canvas) return;
+  ensureHistoryState();
+
+  const events = ['object:added', 'object:removed', 'object:modified', 'path:created'];
+  events.forEach((eventName) => {
+    canvas.on(eventName, (opt) => {
+      if (canvasState.historyLock) return;
+      const target = opt?.target;
+      if (isHelperObject(target)) return;
+      scheduleHistorySnapshot(eventName);
+    });
+  });
+  canvas.on('text:changed', () => {
+    if (canvasState.historyLock) return;
+    scheduleHistorySnapshot('text:changed');
+  });
+
+  captureHistorySnapshot('init', { force: true });
+  refreshUndoButtonState();
+  refreshRedoButtonState();
+}
+
 
 const TOOL_VISIBILITY_BASE_TOKENS = ['always', 'all', 'any', '*'];
 
@@ -413,6 +897,7 @@ function setAspect(key) {
     });
   });
   updateDesignInfo();
+  scheduleHistorySnapshot(`aspect-${key}`, { immediate: true });
 }
 
 function setBg(color) {
@@ -423,6 +908,7 @@ function setBg(color) {
     canvasState.paperShadowRect.set({ fill: color });
   }
   canvasState.canvas?.requestRenderAll();
+  scheduleHistorySnapshot('background', { immediate: true });
 }
 
 export function duplicateActive() {
@@ -438,6 +924,7 @@ export function duplicateActive() {
     canvas.add(clone);
     canvas.setActiveObject(clone);
     canvas.requestRenderAll();
+    scheduleHistorySnapshot('duplicate');
   });
 }
 
@@ -504,6 +991,7 @@ export function groupActiveSelection() {
   canvas.requestRenderAll();
   updateSelInfo();
   syncGroupButtonsFromSelection();
+  scheduleHistorySnapshot('group');
 }
 
 export function ungroupActiveObject() {
@@ -537,6 +1025,8 @@ export function ungroupActiveObject() {
     canvasState.multiSelectBuffer = [];
   }
   syncGroupButtonsFromSelection();
+  initHistoryTracking();
+  scheduleHistorySnapshot('ungroup');
 }
 
 function bringToFront() {
@@ -548,6 +1038,7 @@ function bringToFront() {
   canvasState.hGuide?.bringToFront();
   canvasState.vGuide?.bringToFront();
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('zorder-front');
 }
 
 function sendToBack() {
@@ -559,6 +1050,7 @@ function sendToBack() {
   canvasState.paperRect?.sendToBack();
   canvasState.paperShadowRect?.sendToBack();
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('zorder-back');
 }
 
 function bringForward() {
@@ -568,6 +1060,7 @@ function bringForward() {
   if (!obj) return;
   obj.bringForward();
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('zorder-forward');
 }
 
 function sendBackwards() {
@@ -577,6 +1070,7 @@ function sendBackwards() {
   if (!obj) return;
   obj.sendBackwards();
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('zorder-backwards');
 }
 
 function removeActive() {
@@ -586,6 +1080,7 @@ function removeActive() {
   act.forEach((o) => canvas.remove(o));
   canvas.discardActiveObject();
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('delete');
 }
 
 function currentAlign() {
@@ -738,6 +1233,7 @@ function applyTextBackgroundToSelection() {
     if (colorInput && normalized) colorInput.dataset.lastColor = normalized;
   }
   syncTextBackgroundControlsFromSelection();
+  scheduleHistorySnapshot('text-background');
 }
 
 function addText() {
@@ -771,6 +1267,7 @@ function addText() {
     if (colorInput) colorInput.dataset.lastColor = normalizeColorToHex(bgColor, colorInput.value || '#ffffff');
   }
   syncTextBackgroundControlsFromSelection();
+  scheduleHistorySnapshot('add-text');
 }
 
 function applyTextProps() {
@@ -800,6 +1297,7 @@ function applyTextProps() {
   canvas.requestRenderAll();
   syncTextBackgroundControlsFromSelection();
   updateSelInfo();
+  scheduleHistorySnapshot('text-props');
 }
 
 function clampFontSizeValue(value) {
@@ -899,6 +1397,7 @@ function addImage(file) {
       canvas.setActiveObject(img);
       canvas.requestRenderAll();
       updateSelInfo();
+      scheduleHistorySnapshot('add-image');
     }, { crossOrigin: 'anonymous' });
   };
   reader.readAsDataURL(file);
@@ -974,6 +1473,7 @@ function applyCrop() {
     }
     canvas.setActiveObject(img);
     canvas.requestRenderAll();
+    scheduleHistorySnapshot('crop');
   }, { crossOrigin: 'anonymous' });
   cropTarget = null;
   cropper.destroy();
@@ -1081,6 +1581,7 @@ function applyFeatherMaskToActive(px = 40, shape = 'rect') {
       }
       canvas.setActiveObject(img2);
       canvas.requestRenderAll();
+      scheduleHistorySnapshot('feather');
     }, { crossOrigin: 'anonymous' });
   };
   img.onerror = () => alert('No se pudo cargar la imagen para enmascarar.');
@@ -1193,6 +1694,9 @@ function removeBackgroundFromActiveImage(tolerance = 60) {
       canvas.setActiveObject(img2);
       canvas.requestRenderAll();
       updateSelInfo();
+
+      scheduleHistorySnapshot('remove-bg');
+
     }, { crossOrigin: 'anonymous' });
   };
   img.onerror = () => alert('No se pudo procesar la imagen para quitar el fondo.');
@@ -1231,6 +1735,7 @@ function removeFeatherMaskFromActive() {
     }
     canvas.setActiveObject(img);
     canvas.requestRenderAll();
+    scheduleHistorySnapshot('remove-feather');
   }, { crossOrigin: 'anonymous' });
 }
 
@@ -1276,6 +1781,7 @@ function addOrUpdateVignette(color, strength) {
   }
   orderBackground();
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('vignette', { immediate: true });
 }
 
 function removeVignette() {
@@ -1284,6 +1790,7 @@ function removeVignette() {
   canvas.remove(canvasState.vignetteRect);
   canvasState.vignetteRect = null;
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('remove-vignette', { immediate: true });
 }
 function withNeutralVPT(fn) {
   const canvas = canvasState.canvas;
@@ -1522,6 +2029,7 @@ function alignCanvas(where) {
   obj.setCoords();
   canvas.requestRenderAll();
   updateSelInfo();
+  scheduleHistorySnapshot(`align-${where}`);
 }
 
 async function ensureQRLib() {
@@ -1623,6 +2131,7 @@ function addRect() {
   canvas.add(rect);
   canvas.setActiveObject(rect);
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('add-rect');
 }
 
 function applyShapeProps() {
@@ -1636,6 +2145,7 @@ function applyShapeProps() {
   const r = parseInt(document.getElementById('shapeCorner')?.value || '12', 10) || 0;
   obj.set({ fill, stroke, strokeWidth: sw, rx: r, ry: r });
   canvas.requestRenderAll();
+  scheduleHistorySnapshot('rect-props');
 }
 
 export function syncShapeControlsFromSelection() {
@@ -1963,11 +2473,17 @@ function initTouchMultiSelect() {
 export function setupUIHandlers() {
   applyDialogFallback();
   updateToolVisibility();
+  refreshCopyButtonState();
+  refreshPasteButtonState();
+  refreshUndoButtonState();
+  refreshRedoButtonState();
+
   window.addEventListener('resize', setHeaderHeight);
   window.addEventListener('resize', syncDrawers);
   mq.addEventListener('change', toggleDeskBar);
   toggleDeskBar(mq);
   attachDrawerButtons();
+  window.addEventListener('keydown', handleEditShortcut);
 
   document.getElementById('selAspect')?.addEventListener('change', (e) => setAspect(e.target.value));
   document.getElementById('inpBg')?.addEventListener('input', (e) => setBg(e.target.value));
@@ -1982,6 +2498,8 @@ export function setupUIHandlers() {
     c.discardActiveObject();
     c.requestRenderAll();
     updateSelInfo();
+    refreshCopyButtonState();
+    updateToolVisibility();
     canvasState.autoCenter = true;
     requestAnimationFrame(() => {
       c.requestRenderAll();
@@ -1990,9 +2508,22 @@ export function setupUIHandlers() {
         fitToViewport(true);
       });
     });
+    scheduleHistorySnapshot('new-design', { force: true, immediate: true });
   });
 
   document.getElementById('btnText')?.addEventListener('click', addText);
+  document.getElementById('btnCopy')?.addEventListener('click', async () => {
+    await copySelectionToClipboard();
+  });
+  document.getElementById('btnPaste')?.addEventListener('click', async () => {
+    await pasteFromClipboard();
+  });
+  document.getElementById('btnUndo')?.addEventListener('click', async () => {
+    await undoHistory();
+  });
+  document.getElementById('btnRedo')?.addEventListener('click', async () => {
+    await redoHistory();
+  });
   document.getElementById('fileImg')?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) addImage(file);
@@ -2015,6 +2546,7 @@ export function setupUIHandlers() {
         if (typeof activeObject.initDimensions === 'function') activeObject.initDimensions();
         if (typeof activeObject.setCoords === 'function') activeObject.setCoords();
         canvas.requestRenderAll();
+        scheduleHistorySnapshot(`text-align-${align}`);
       }
 
       updateSelInfo();
@@ -2107,6 +2639,7 @@ export function setupUIHandlers() {
     textbox.set('fill', textFillInput.value);
     canvas.requestRenderAll();
     updateSelInfo();
+    scheduleHistorySnapshot('textbox-fill');
   });
 
   attachTextboxListener(textStrokeColorInput, () => {
@@ -2117,6 +2650,7 @@ export function setupUIHandlers() {
     if (!didChange) return;
     canvas.requestRenderAll();
     updateSelInfo();
+    scheduleHistorySnapshot('textbox-stroke-color');
   });
 
   attachTextboxListener(textStrokeWidthInput, () => {
@@ -2130,6 +2664,7 @@ export function setupUIHandlers() {
     if (!didChange) return;
     canvas.requestRenderAll();
     updateSelInfo();
+    scheduleHistorySnapshot('textbox-stroke-width');
   });
 
   const textBackgroundInput = document.getElementById('inpTextBg');
@@ -2149,6 +2684,7 @@ export function setupUIHandlers() {
       if (obj && (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox')) {
         obj.set('fontFamily', family);
         canvasState.canvas.requestRenderAll();
+        scheduleHistorySnapshot('font-family');
       }
     });
   }
@@ -2167,6 +2703,9 @@ export function setupUIHandlers() {
     const normalized = reflectFontSize(fontSizeSlider.value);
     if (normalized === null) return;
     applyLiveFontSize(normalized);
+  });
+  fontSizeSlider?.addEventListener('change', () => {
+    scheduleHistorySnapshot('font-size');
   });
 
   document.getElementById('btnStartCrop')?.addEventListener('click', startCrop);
@@ -2213,9 +2752,14 @@ export function setupUIHandlers() {
         applyTextboxControlVisibility(target);
       }
     });
-    canvas.on('selection:created', syncGroupButtonsFromSelection);
-    canvas.on('selection:updated', syncGroupButtonsFromSelection);
-    canvas.on('selection:cleared', syncGroupButtonsFromSelection);
+    const handleSelection = () => {
+      syncGroupButtonsFromSelection();
+      refreshCopyButtonState();
+      updateToolVisibility();
+    };
+    canvas.on('selection:created', handleSelection);
+    canvas.on('selection:updated', handleSelection);
+    canvas.on('selection:cleared', handleSelection);
   }
   syncGroupButtonsFromSelection();
 
@@ -2240,6 +2784,7 @@ export function setupUIHandlers() {
       const opacity = clamped / 100;
       activeObject.set({ opacity });
       canvas.requestRenderAll();
+      scheduleHistorySnapshot('opacity');
     });
   }
 
