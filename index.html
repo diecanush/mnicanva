@@ -40,7 +40,7 @@
       </div>
 
       <div class="panel-body">
-        <section class="group">
+        <section class="group" data-visible-for="always">
           <h3>Formato del lienzo</h3>
           <label>Proporción
             <select id="selAspect">
@@ -62,7 +62,19 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="always">
+          <h3>Edición</h3>
+          <div class="row">
+            <button id="btnUndo" type="button">Deshacer</button>
+            <button id="btnRedo" type="button">Rehacer</button>
+          </div>
+          <div class="row">
+            <button id="btnCopy" type="button">Copiar</button>
+            <button id="btnPaste" type="button">Pegar</button>
+          </div>
+        </section>
+
+        <section class="group" data-visible-for="none text">
           <h3>Texto</h3>
 
           <!-- Select clásico (lo escondemos, queda como espejo) -->
@@ -105,11 +117,21 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="none image">
           <h3>Imágenes &amp; recortes</h3>
           <input id="fileImg" type="file" accept="image/*" />
           <div class="row">
             <button id="btnStartCrop" type="button">Recortar</button>
+          </div>
+
+          <div class="row">
+            <label>Tolerancia fondo
+              <input id="bgRemoveTolerance" type="range" min="0" max="400" value="60" />
+            </label>
+            <span id="bgTolVal">60</span>
+          </div>
+          <div class="row">
+            <button id="btnRemoveBg" type="button">Quitar fondo</button>
           </div>
 
           <div class="row">
@@ -132,7 +154,7 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="none rect">
           <h3>Recuadro</h3>
           <div class="row">
             <button id="btnRect" type="button">Insertar recuadro</button>
@@ -150,7 +172,7 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="selected">
           <h3>Capas</h3>
           <div class="row">
             <button id="btnFront">Al frente</button>
@@ -174,7 +196,7 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="selected">
           <h3>Alinear en lienzo</h3>
           <div class="row">
             <button id="alignLeft">Izquierda</button>
@@ -188,7 +210,7 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="none">
           <h3>QR</h3>
           <label>WhatsApp (tel. internacional sin +)
             <input id="waPhone" type="text" placeholder="5492901..." />
@@ -203,7 +225,7 @@
           <button id="btnMakeURL" type="button">QR URL</button>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="always">
           <h3>Exportar / imprimir</h3>
           <div class="row">
             <label>Escala
@@ -275,6 +297,8 @@
         <ul>
           <li>Espacio o botón ✋ para mover el lienzo.</li>
           <li>Ctrl/Cmd+D duplica el objeto.</li>
+          <li>Ctrl/Cmd+C copia la selección y Ctrl/Cmd+V la pega.</li>
+          <li>Ctrl/Cmd+Z deshace y Ctrl/Cmd+Shift+Z (o Ctrl/Cmd+Y) rehace.</li>
           <li>Eliminá objetos con Supr/Backspace (si no estás editando texto).</li>
         </ul>
       </div>

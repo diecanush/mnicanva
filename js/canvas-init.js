@@ -13,7 +13,52 @@ export const canvasState = {
   spaceDown: false,
   multiSelectMode: false,
   multiSelectBuffer: [],
+  clipboardData: null,
+  clipboardShift: null,
+  history: [],
+  historyIndex: -1,
+  historyLock: false,
 };
+
+const FABRIC_EXTRA_PROPS = [
+  'id',
+  'name',
+  'rx',
+  'ry',
+  'strokeUniform',
+  'shadow',
+  'charSpacing',
+  'textBackgroundColor',
+  'paintFirst',
+  'globalCompositeOperation',
+  'cornerStyle',
+  'selectable',
+  'evented',
+  '__origSrc',
+  '__maskedSrc',
+  'splitByGrapheme',
+  'fontURL',
+];
+
+let fabricSerializationReady = false;
+
+function ensureFabricSerializationProps() {
+  if (fabricSerializationReady) return;
+  if (!(window.fabric && window.fabric.Object)) return;
+
+  const { Object: FabricObject } = window.fabric;
+  const originalToObject = FabricObject.prototype.toObject;
+
+  FabricObject.prototype.toObject = function patched(extraProperties) {
+    const base = Array.isArray(extraProperties) ? extraProperties.slice() : [];
+    FABRIC_EXTRA_PROPS.forEach((prop) => {
+      if (!base.includes(prop)) base.push(prop);
+    });
+    return originalToObject.call(this, base);
+  };
+
+  fabricSerializationReady = true;
+}
 
 export function isFabricEditing() {
   const obj = canvasState.canvas?.getActiveObject?.();
@@ -175,6 +220,8 @@ export function initCanvas({
     return null;
   }
 
+  ensureFabricSerializationProps();
+
   const canvas = new fabric.Canvas('stage', {
     preserveObjectStacking: true,
     backgroundColor: 'transparent',
@@ -183,6 +230,11 @@ export function initCanvas({
   canvas.setWidth(canvasState.baseW);
   canvas.setHeight(canvasState.baseH);
   canvasState.canvas = canvas;
+  canvasState.history = [];
+  canvasState.historyIndex = -1;
+  canvasState.historyLock = false;
+  canvasState.clipboardData = null;
+  canvasState.clipboardShift = null;
 
   canvasState.hGuide = new fabric.Line([0, canvasState.baseH / 2, canvasState.baseW, canvasState.baseH / 2], {
     stroke: '#38bdf8',
@@ -314,6 +366,7 @@ export function initCanvas({
   if (typeof onSelectionChange === 'function') {
     canvas.on('selection:updated', onSelectionChange);
     canvas.on('selection:created', onSelectionChange);
+    canvas.on('selection:cleared', onSelectionChange);
   }
 
   updateDesignInfo();
