@@ -74,6 +74,7 @@ function applyDialogFallback() {
 
 const mq = window.matchMedia('(min-width: 768px)');
 
+
 const SERIALIZE_PROPS = [
   'id',
   'name',
@@ -554,6 +555,7 @@ function initHistoryTracking() {
   refreshUndoButtonState();
   refreshRedoButtonState();
 }
+
 
 const TOOL_VISIBILITY_BASE_TOKENS = ['always', 'all', 'any', '*'];
 
@@ -1692,7 +1694,9 @@ function removeBackgroundFromActiveImage(tolerance = 60) {
       canvas.setActiveObject(img2);
       canvas.requestRenderAll();
       updateSelInfo();
+
       scheduleHistorySnapshot('remove-bg');
+
     }, { crossOrigin: 'anonymous' });
   };
   img.onerror = () => alert('No se pudo procesar la imagen para quitar el fondo.');
@@ -2473,6 +2477,7 @@ export function setupUIHandlers() {
   refreshPasteButtonState();
   refreshUndoButtonState();
   refreshRedoButtonState();
+
   window.addEventListener('resize', setHeaderHeight);
   window.addEventListener('resize', syncDrawers);
   mq.addEventListener('change', toggleDeskBar);
