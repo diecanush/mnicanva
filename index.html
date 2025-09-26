@@ -62,6 +62,17 @@
           </div>
         </section>
 
+        <section class="group" data-visible-for="always">
+          <h3>Insertar elementos</h3>
+          <input id="fileImg" type="file" accept="image/*" style="display: none;" />
+          <div class="insert-row">
+            <div id="btnText" class="insert-icon" title="Añadir texto" aria-label="Añadir texto" role="button" tabindex="0">📝</div>
+            <div id="btnImg" class="insert-icon large" title="Añadir imagen" aria-label="Añadir imagen" role="button" tabindex="0">🖼️</div>
+            <div id="btnRect" class="insert-icon" title="Insertar recuadro" aria-label="Insertar recuadro" role="button" tabindex="0">□</div>
+            <div id="btnMakeWA" class="insert-icon" title="QR WhatsApp" aria-label="Generar QR WhatsApp" role="button" tabindex="0">📱</div>
+            <div id="btnMakeURL" class="insert-icon" title="QR URL" aria-label="Generar QR URL" role="button" tabindex="0">🔗</div>
+          </div>
+        </section>
 
         <section class="group" data-visible-for="always">
           <h3>Edición</h3>
@@ -114,7 +125,7 @@
           </div>
 
           <div class="row">
-            <button id="btnText" type="button">Añadir texto</button>
+            <button id="btnText" type="button" class="insert-btn">📝</button>
             <button id="btnApplyText" type="button">Aplicar</button>
           </div>
         </section>
@@ -212,20 +223,6 @@
           </div>
         </section>
 
-        <section class="group" data-visible-for="none">
-          <h3>QR</h3>
-          <label>WhatsApp (tel. internacional sin +)
-            <input id="waPhone" type="text" placeholder="5492901..." />
-          </label>
-          <label>Mensaje
-            <input id="waMsg" type="text" placeholder="Texto opcional..." />
-          </label>
-          <button id="btnMakeWA" type="button">QR WhatsApp</button>
-          <label>URL
-            <input id="inURL" type="url" placeholder="https://..." />
-          </label>
-          <button id="btnMakeURL" type="button">QR URL</button>
-        </section>
 
         <section class="group" data-visible-for="always">
           <h3>Exportar / imprimir</h3>
@@ -285,6 +282,18 @@
       <canvas id="stage" aria-label="Lienzo de dibujo"></canvas>
     </section>
 
+    <!-- Controles de objeto seleccionado -->
+    <div id="selectedControls" class="selected-controls" aria-label="Controles del objeto seleccionado">
+      <div class="selected-toolbar">
+        <button id="btnFrontSel" type="button" title="Al frente" aria-label="Traer al frente">⬆️</button>
+        <button id="btnBackSel" type="button" title="Al fondo" aria-label="Enviar al fondo">⬇️</button>
+        <div class="opacity-group">
+          <label>Transparencia <input type="range" id="opacityControlSel" min="0" max="100" value="100" /></label>
+          <span id="opacityValueSel">100%</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Dock móvil: las pestañas se construyen por JS y los paneles se mueven aquí -->
     <div id="mobileDock"></div>
 
@@ -331,6 +340,111 @@
       <button id="cmApply" type="button" class="primary">Aplicar</button>
       <button id="cmClose" type="button">Cerrar</button>
     </div>
+  </dialog>
+
+  <!-- Border Modal -->
+  <dialog id="borderModal">
+    <form method="dialog">
+      <h3>Borde del texto</h3>
+      <label>Color <input id="borderColor" type="color" value="#000000" /></label>
+      <label>Grosor <input id="borderWidth" type="number" min="0" max="20" value="1" /></label>
+      <button type="submit">Aplicar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Feather Modal -->
+  <dialog id="featherModal">
+    <form method="dialog">
+      <h3>Aplicar Feather</h3>
+      <label>Forma
+        <select id="featherShapeModal">
+          <option value="rect">Rectangular</option>
+          <option value="circle">Circular</option>
+        </select>
+      </label>
+      <label>Píxeles <input id="featherPxModal" type="range" min="0" max="200" value="40" /></label>
+      <button type="submit">Aplicar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Remove BG Modal -->
+  <dialog id="removeBgModal">
+    <form method="dialog">
+      <h3>Quitar Fondo</h3>
+      <label>Tolerancia <input id="bgRemoveToleranceModal" type="range" min="0" max="400" value="60" /></label>
+      <button type="submit">Aplicar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Text Modal -->
+  <dialog id="textModal">
+    <form method="dialog">
+      <h3>Añadir Texto</h3>
+      <label>Texto <input id="textInput" type="text" placeholder="Doble click para editar" /></label>
+      <button type="submit">Añadir</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- WA Modal -->
+  <dialog id="waModal">
+    <form method="dialog">
+      <h3>QR WhatsApp</h3>
+      <label>Teléfono (sin +) <input id="waPhone" type="text" placeholder="5492901..." /></label>
+      <label>Mensaje <input id="waMsg" type="text" placeholder="Texto opcional..." /></label>
+      <button type="submit">Generar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- URL Modal -->
+  <dialog id="urlModal">
+    <form method="dialog">
+      <h3>QR URL</h3>
+      <label>URL <input id="inURL" type="url" placeholder="https://..." /></label>
+      <button type="submit">Generar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Text modal -->
+  <dialog id="textModal">
+    <form method="dialog">
+      <h3>Añadir texto</h3>
+      <label>Texto: <input id="textInput" type="text" value="Doble click para editar" required /></label>
+      <div class="modal-buttons">
+        <button type="submit">Añadir</button>
+        <button type="button" onclick="textModal.close()">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- WA QR modal -->
+  <dialog id="waModal">
+    <form method="dialog">
+      <h3>QR WhatsApp</h3>
+      <label>Teléfono (sin +): <input id="waPhone" type="text" placeholder="5492901..." required /></label>
+      <label>Mensaje: <input id="waMsg" type="text" placeholder="Texto opcional..." /></label>
+      <div class="modal-buttons">
+        <button type="submit">Generar</button>
+        <button type="button" onclick="waModal.close()">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- URL QR modal -->
+  <dialog id="urlModal">
+    <form method="dialog">
+      <h3>QR URL</h3>
+      <label>URL: <input id="inURL" type="url" placeholder="https://..." required /></label>
+      <div class="modal-buttons">
+        <button type="submit">Generar</button>
+        <button type="button" onclick="urlModal.close()">Cancelar</button>
+      </div>
+    </form>
   </dialog>
 
   <!-- Libs -->

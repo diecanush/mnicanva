@@ -73,6 +73,48 @@ label.chk{ gap:6px; }
 }
 #stage{ outline:none; }
 
+/* Selected controls */
+#selectedControls{
+  display: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+}
+#selectedControls.show{
+  display: block;
+}
+.selected-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.selected-toolbar button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.opacity-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.opacity-group input {
+  width: 80px;
+}
+/* Hide selected controls on desktop, show on mobile */
+@media (min-width: 768px){
+  #selectedControls{ display: none !important; }
+}
+
 /* Zoom HUD */
 .hud button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; cursor:pointer; }
 #btnHandHUD.active{ background:#e5e7eb !important; }
@@ -249,6 +291,21 @@ label.chk{ gap:6px; }
 .cropper-toolbar .grow{ flex:1; }
 .cropper-toolbar button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; }
 .cropper-toolbar .primary{ background:#111827; color:#fff; border-color:#111827; }
+
+/* Modals */
+dialog {
+  border: none;
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+dialog::backdrop { background: rgba(0,0,0,.5); }
+dialog h3 { margin: 0 0 12px; font-size: 18px; }
+dialog label { display: block; margin: 8px 0; }
+dialog input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+.modal-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 
 /* Dark mode */
 @media (prefers-color-scheme: dark){
@@ -520,6 +577,92 @@ button:disabled{ opacity:.6; cursor:not-allowed; }
 #rightPanel::-webkit-scrollbar-thumb{ background:#d1d5db; border-radius:10px; }
 
 
+/* Selected toolbar */
+.selected-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px;
+  align-items: center;
+  justify-content: flex-start;
+}
+.selected-toolbar button {
+  padding: 8px 10px;
+  font-size: 18px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+.selected-toolbar button:hover {
+  background: #f3f4f6;
+}
+.selected-toolbar input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.selected-toolbar input[type="number"] {
+  width: 70px;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.selected-toolbar input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+.opacity-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: #f9fafb;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.opacity-group input {
+  width: 80px;
+}
+
+/* Insert icons */
+.insert-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  gap: 4px;
+}
+.insert-icon {
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 4px;
+  padding: 2px;
+  width: 24px;
+  height: 24px;
+}
+.insert-icon:hover {
+  background: #f3f4f6;
+}
+.insert-icon.large {
+  font-size: 28px;
+  width: 36px;
+  height: 36px;
+}
+
 /* ===== Panel más cómodo y sin overflow ===== */
 :root{
   --panel-w: 340px;     /* ancho base del panel */
@@ -561,7 +704,7 @@ button:disabled{ opacity:.6; cursor:not-allowed; }
   margin-bottom: var(--gap);
 }
 @media (max-width: 380px){
-  .row{ grid-template-columns: 1fr; }
+  .row{ grid-template-columns: 1fr 1fr; }
 }
 
 /* Etiqueta arriba, control abajo, para no “comerse” el ancho */

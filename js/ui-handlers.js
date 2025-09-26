@@ -627,6 +627,8 @@ function updateToolVisibility() {
   if (!groups.length) return;
 
   const { tokens } = collectSelectionTokens();
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+  const selectedControls = document.getElementById('selectedControls');
 
   groups.forEach((group) => {
     const raw = (group.dataset?.visibleFor || '').trim();
@@ -649,6 +651,233 @@ function updateToolVisibility() {
       group.setAttribute('inert', '');
     }
   });
+
+  // Build selected toolbar
+  if (selectedControls) {
+    const toolbar = selectedControls.querySelector('.selected-toolbar');
+    if (toolbar) {
+      toolbar.innerHTML = '';
+      if (tokens.has('selected')) {
+        // Copy
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = '📋';
+        copyBtn.title = 'Copiar';
+        copyBtn.addEventListener('click', async () => {
+          await copySelectionToClipboard();
+        });
+        toolbar.appendChild(copyBtn);
+
+        // Paste
+        const pasteBtn = document.createElement('button');
+        pasteBtn.type = 'button';
+        pasteBtn.textContent = '📄';
+        pasteBtn.title = 'Pegar';
+        pasteBtn.addEventListener('click', async () => {
+          await pasteFromClipboard();
+        });
+        toolbar.appendChild(pasteBtn);
+
+        // Front
+        const frontBtn = document.createElement('button');
+        frontBtn.type = 'button';
+        frontBtn.textContent = '⬆️';
+        frontBtn.title = 'Al frente';
+        frontBtn.addEventListener('click', bringToFront);
+        toolbar.appendChild(frontBtn);
+
+        // Back
+        const backBtn = document.createElement('button');
+        backBtn.type = 'button';
+        backBtn.textContent = '⬇️';
+        backBtn.title = 'Al fondo';
+        backBtn.addEventListener('click', sendToBack);
+        toolbar.appendChild(backBtn);
+
+        // Opacity
+        const opacityGroup = document.createElement('div');
+        opacityGroup.className = 'opacity-group';
+        const opacityLabel = document.createElement('label');
+        opacityLabel.textContent = 'Transparencia';
+        const opacityInput = document.createElement('input');
+        opacityInput.type = 'range';
+        opacityInput.min = '0';
+        opacityInput.max = '100';
+        opacityInput.value = '100';
+        const opacityValue = document.createElement('span');
+        opacityValue.textContent = '100%';
+        opacityInput.addEventListener('input', () => handleOpacityChange(opacityInput, opacityValue));
+        opacityGroup.appendChild(opacityLabel);
+        opacityGroup.appendChild(opacityInput);
+        opacityGroup.appendChild(opacityValue);
+        toolbar.appendChild(opacityGroup);
+      }
+
+      if (tokens.has('textbox')) {
+        const canvas = canvasState.canvas;
+        // Font
+        const fontBtn = document.createElement('button');
+        fontBtn.type = 'button';
+        fontBtn.textContent = '🔤';
+        fontBtn.title = 'Fuente';
+        fontBtn.addEventListener('click', () => {
+          const modal = document.getElementById('fontPicker');
+          if (modal) openModal(modal);
+        });
+        toolbar.appendChild(fontBtn);
+
+        // Color
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = '#000000';
+        colorInput.title = 'Color de texto';
+        colorInput.addEventListener('input', () => {
+          const textbox = getActiveTextbox();
+          if (textbox) {
+            textbox.set('fill', colorInput.value);
+            canvas.requestRenderAll();
+            scheduleHistorySnapshot('text-color');
+          }
+        });
+        toolbar.appendChild(colorInput);
+
+        // Border
+        const borderBtn = document.createElement('button');
+        borderBtn.type = 'button';
+        borderBtn.textContent = '🔳';
+        borderBtn.title = 'Borde';
+        borderBtn.addEventListener('click', () => {
+          const modal = document.getElementById('borderModal');
+          if (modal) openModal(modal);
+        });
+        toolbar.appendChild(borderBtn);
+
+        // Size
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.min = '8';
+        sizeInput.max = '200';
+        sizeInput.value = '64';
+        sizeInput.title = 'Tamaño';
+        sizeInput.addEventListener('input', () => {
+          const normalized = clampFontSizeValue(sizeInput.value);
+          if (normalized !== null) {
+            applyLiveFontSize(normalized);
+          }
+        });
+        toolbar.appendChild(sizeInput);
+
+        // BG Color
+        const bgColorInput = document.createElement('input');
+        bgColorInput.type = 'color';
+        bgColorInput.value = '#ffffff';
+        bgColorInput.title = 'Color de fondo';
+        bgColorInput.addEventListener('input', () => {
+          applyTextBackgroundToSelection(bgColorInput.value, noBgCheckbox.checked);
+        });
+        toolbar.appendChild(bgColorInput);
+
+        // No BG
+        const noBgCheckbox = document.createElement('input');
+        noBgCheckbox.type = 'checkbox';
+        noBgCheckbox.title = 'Sin relleno';
+        noBgCheckbox.addEventListener('change', () => {
+          applyTextBackgroundToSelection(bgColorInput.value, noBgCheckbox.checked);
+        });
+        toolbar.appendChild(noBgCheckbox);
+
+        // Align buttons
+        const alignLeft = document.createElement('button');
+        alignLeft.type = 'button';
+        alignLeft.textContent = '⟸';
+        alignLeft.title = 'Izquierda';
+        alignLeft.addEventListener('click', () => {
+          const textbox = getActiveTextbox();
+          if (textbox) {
+            textbox.set('textAlign', 'left');
+            if (textbox.initDimensions) textbox.initDimensions();
+            if (textbox.setCoords) textbox.setCoords();
+            canvas.requestRenderAll();
+            scheduleHistorySnapshot('text-align-left');
+          }
+        });
+        toolbar.appendChild(alignLeft);
+
+        const alignCenter = document.createElement('button');
+        alignCenter.type = 'button';
+        alignCenter.textContent = '⇔';
+        alignCenter.title = 'Centro';
+        alignCenter.addEventListener('click', () => {
+          const textbox = getActiveTextbox();
+          if (textbox) {
+            textbox.set('textAlign', 'center');
+            if (textbox.initDimensions) textbox.initDimensions();
+            if (textbox.setCoords) textbox.setCoords();
+            canvas.requestRenderAll();
+            scheduleHistorySnapshot('text-align-center');
+          }
+        });
+        toolbar.appendChild(alignCenter);
+
+        const alignRight = document.createElement('button');
+        alignRight.type = 'button';
+        alignRight.textContent = '⟹';
+        alignRight.title = 'Derecha';
+        alignRight.addEventListener('click', () => {
+          const textbox = getActiveTextbox();
+          if (textbox) {
+            textbox.set('textAlign', 'right');
+            if (textbox.initDimensions) textbox.initDimensions();
+            if (textbox.setCoords) textbox.setCoords();
+            canvas.requestRenderAll();
+            scheduleHistorySnapshot('text-align-right');
+          }
+        });
+        toolbar.appendChild(alignRight);
+      }
+
+      if (tokens.has('image')) {
+        // Crop
+        const cropBtn = document.createElement('button');
+        cropBtn.type = 'button';
+        cropBtn.textContent = '✂️';
+        cropBtn.title = 'Recortar';
+        cropBtn.addEventListener('click', startCrop);
+        toolbar.appendChild(cropBtn);
+
+        // Feather
+        const featherBtn = document.createElement('button');
+        featherBtn.type = 'button';
+        featherBtn.textContent = '🌫️';
+        featherBtn.title = 'Feather';
+        featherBtn.addEventListener('click', () => {
+          const modal = document.getElementById('featherModal');
+          if (modal) openModal(modal);
+        });
+        toolbar.appendChild(featherBtn);
+
+        // Remove BG
+        const removeBgBtn = document.createElement('button');
+        removeBgBtn.type = 'button';
+        removeBgBtn.textContent = '🖼️';
+        removeBgBtn.title = 'Quitar fondo';
+        removeBgBtn.addEventListener('click', () => {
+          const modal = document.getElementById('removeBgModal');
+          if (modal) openModal(modal);
+        });
+        toolbar.appendChild(removeBgBtn);
+      }
+    }
+  }
+
+  // Show selected controls on mobile
+  if (isMobile && selectedControls) {
+    if (tokens.has('selected')) {
+      selectedControls.classList.add('show');
+    } else {
+      selectedControls.classList.remove('show');
+    }
+  }
 }
 
 function toggleDeskBar(e) {
@@ -1220,8 +1449,14 @@ export function syncTextBackgroundControlsFromSelection() {
   }
 }
 
-function applyTextBackgroundToSelection() {
-  const { color, isNone } = getTextBackgroundControlValues();
+function applyTextBackgroundToSelection(overrideColor, overrideIsNone) {
+  let color, isNone;
+  if (overrideColor !== undefined) {
+    color = overrideColor;
+    isNone = overrideIsNone !== undefined ? overrideIsNone : false;
+  } else {
+    ({ color, isNone } = getTextBackgroundControlValues());
+  }
   const canvas = canvasState.canvas;
   const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
   if (activeObject && activeObject.type === 'textbox') {
@@ -1237,11 +1472,11 @@ function applyTextBackgroundToSelection() {
   scheduleHistorySnapshot('text-background');
 }
 
-function addText() {
+function addText(text = 'Doble click para editar') {
   const canvas = canvasState.canvas;
   if (!canvas) return;
   const { color: bgColor, isNone: bgNone } = getTextBackgroundControlValues();
-  const textbox = new fabric.Textbox('Doble click para editar', {
+  const textbox = new fabric.Textbox(text, {
     left: canvasState.baseW / 2,
     top: canvasState.baseH / 2,
     originX: 'center',
@@ -2196,8 +2431,9 @@ export function syncShapeControlsFromSelection() {
 
 export function syncOpacityControlFromSelection() {
   const control = document.getElementById('opacityControl');
-  if (!control) return;
   const valueEl = document.getElementById('opacityValue');
+  const controlSel = document.getElementById('opacityControlSel');
+  const valueElSel = document.getElementById('opacityValueSel');
   const canvas = canvasState.canvas;
   const activeObject = canvas?.getActiveObject ? canvas.getActiveObject() : null;
   const activeObjects = canvas?.getActiveObjects ? canvas.getActiveObjects() : [];
@@ -2211,9 +2447,16 @@ export function syncOpacityControlFromSelection() {
   const normalized = Math.min(1, Math.max(0, opacity));
   const percentage = Math.round(normalized * 100);
 
-  control.value = `${percentage}`;
-  control.disabled = !hasSingle;
+  if (control) {
+    control.value = `${percentage}`;
+    control.disabled = !hasSingle;
+  }
   if (valueEl) valueEl.textContent = `${percentage}%`;
+  if (controlSel) {
+    controlSel.value = `${percentage}`;
+    controlSel.disabled = !hasSingle;
+  }
+  if (valueElSel) valueElSel.textContent = `${percentage}%`;
 }
 let isMobileUI = false;
 let leftPH;
@@ -2537,7 +2780,17 @@ export function setupUIHandlers() {
     scheduleHistorySnapshot('new-design', { force: true, immediate: true });
   });
 
-  document.getElementById('btnText')?.addEventListener('click', addText);
+  document.getElementById('btnText')?.addEventListener('click', () => {
+    const modal = document.getElementById('textModal');
+    if (modal) openModal(modal);
+  });
+  document.getElementById('textModal')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = document.getElementById('textInput')?.value || 'Doble click para editar';
+    addText(text);
+    const modal = document.getElementById('textModal');
+    if (modal) closeModal(modal);
+  });
   document.getElementById('btnCopy')?.addEventListener('click', async () => {
     await copySelectionToClipboard();
   });
@@ -2550,6 +2803,10 @@ export function setupUIHandlers() {
   document.getElementById('btnRedo')?.addEventListener('click', async () => {
     await redoHistory();
   });
+  document.getElementById('btnImg')?.addEventListener('click', () => {
+    document.getElementById('fileImg')?.click();
+  });
+
   document.getElementById('fileImg')?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) {
@@ -2769,6 +3026,8 @@ export function setupUIHandlers() {
 
   document.getElementById('btnFront')?.addEventListener('click', bringToFront);
   document.getElementById('btnBack')?.addEventListener('click', sendToBack);
+  document.getElementById('btnFrontSel')?.addEventListener('click', bringToFront);
+  document.getElementById('btnBackSel')?.addEventListener('click', sendToBack);
   document.getElementById('btnFwd')?.addEventListener('click', bringForward);
   document.getElementById('btnBwd')?.addEventListener('click', sendBackwards);
   document.getElementById('btnDup')?.addEventListener('click', duplicateActive);
@@ -2797,31 +3056,39 @@ export function setupUIHandlers() {
 
   const opacityControl = document.getElementById('opacityControl');
   const opacityValue = document.getElementById('opacityValue');
+  const opacityControlSel = document.getElementById('opacityControlSel');
+  const opacityValueSel = document.getElementById('opacityValueSel');
+
+  const handleOpacityChange = (control, valueEl) => {
+    const canvas = canvasState.canvas;
+    let raw = parseInt(control.value, 10);
+    if (!Number.isFinite(raw)) raw = 0;
+    const clamped = Math.min(100, Math.max(0, raw));
+    if (`${clamped}` !== control.value) control.value = `${clamped}`;
+    if (valueEl) valueEl.textContent = `${clamped}%`;
+
+    if (!canvas) return;
+    const activeObject = canvas.getActiveObject ? canvas.getActiveObject() : null;
+    const activeObjects = canvas.getActiveObjects ? canvas.getActiveObjects() : [];
+    const hasSingle = !!activeObject && activeObject.type !== 'activeSelection' && activeObjects.length === 1;
+    control.disabled = !hasSingle;
+    if (!hasSingle || !activeObject) return;
+
+    const opacity = clamped / 100;
+    activeObject.set({ opacity });
+    if (renderDebounceTimer) clearTimeout(renderDebounceTimer);
+    renderDebounceTimer = setTimeout(() => {
+      canvas.requestRenderAll();
+      scheduleHistorySnapshot('opacity');
+      renderDebounceTimer = null;
+    }, 100); // 100ms debounce
+  };
+
   if (opacityControl) {
-    opacityControl.addEventListener('input', () => {
-      const canvas = canvasState.canvas;
-      let raw = parseInt(opacityControl.value, 10);
-      if (!Number.isFinite(raw)) raw = 0;
-      const clamped = Math.min(100, Math.max(0, raw));
-      if (`${clamped}` !== opacityControl.value) opacityControl.value = `${clamped}`;
-      if (opacityValue) opacityValue.textContent = `${clamped}%`;
-
-      if (!canvas) return;
-      const activeObject = canvas.getActiveObject ? canvas.getActiveObject() : null;
-      const activeObjects = canvas.getActiveObjects ? canvas.getActiveObjects() : [];
-      const hasSingle = !!activeObject && activeObject.type !== 'activeSelection' && activeObjects.length === 1;
-      opacityControl.disabled = !hasSingle;
-      if (!hasSingle || !activeObject) return;
-
-      const opacity = clamped / 100;
-      activeObject.set({ opacity });
-      if (renderDebounceTimer) clearTimeout(renderDebounceTimer);
-      renderDebounceTimer = setTimeout(() => {
-        canvas.requestRenderAll();
-        scheduleHistorySnapshot('opacity');
-        renderDebounceTimer = null;
-      }, 100); // 100ms debounce
-    });
+    opacityControl.addEventListener('input', () => handleOpacityChange(opacityControl, opacityValue));
+  }
+  if (opacityControlSel) {
+    opacityControlSel.addEventListener('input', () => handleOpacityChange(opacityControlSel, opacityValueSel));
   }
 
   const opacityCanvas = canvasState.canvas;
@@ -2884,6 +3151,11 @@ export function setupUIHandlers() {
   updatePrintHints();
 
   document.getElementById('btnMakeWA')?.addEventListener('click', () => {
+    const modal = document.getElementById('waModal');
+    if (modal) openModal(modal);
+  });
+  document.getElementById('waModal')?.addEventListener('submit', (e) => {
+    e.preventDefault();
     const phone = (document.getElementById('waPhone')?.value || '').replace(/\D/g, '');
     const text = encodeURIComponent(document.getElementById('waMsg')?.value || '');
     if (!phone) {
@@ -2892,8 +3164,15 @@ export function setupUIHandlers() {
     }
     const url = `https://wa.me/${phone}${text ? `?text=${text}` : ''}`;
     makeQR(url);
+    const modal = document.getElementById('waModal');
+    if (modal) closeModal(modal);
   });
   document.getElementById('btnMakeURL')?.addEventListener('click', () => {
+    const modal = document.getElementById('urlModal');
+    if (modal) openModal(modal);
+  });
+  document.getElementById('urlModal')?.addEventListener('submit', (e) => {
+    e.preventDefault();
     let url = (document.getElementById('inURL')?.value || '').trim();
     if (!url) url = 'https://example.com';
     try {
@@ -2903,6 +3182,8 @@ export function setupUIHandlers() {
       return;
     }
     makeQR(url);
+    const modal = document.getElementById('urlModal');
+    if (modal) closeModal(modal);
   });
 
   document.getElementById('btnRect')?.addEventListener('click', addRect);
@@ -2983,6 +3264,37 @@ export function setupUIHandlers() {
     if (cropper) cropper.setAspectRatio(ratio);
   });
   document.getElementById('cmApply')?.addEventListener('click', applyCrop);
+
+  // Border modal
+  document.getElementById('borderModal')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const color = document.getElementById('borderColor')?.value || '#000000';
+    const width = parseInt(document.getElementById('borderWidth')?.value || '1', 10);
+    const textbox = getActiveTextbox();
+    if (textbox) {
+      applyStrokeToTextbox(textbox, { color, width });
+      canvas.requestRenderAll();
+      scheduleHistorySnapshot('border');
+    }
+    closeModal(document.getElementById('borderModal'));
+  });
+
+  // Feather modal
+  document.getElementById('featherModal')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const shape = document.getElementById('featherShapeModal')?.value;
+    const px = parseInt(document.getElementById('featherPxModal')?.value || '40', 10);
+    applyFeatherMaskToActive(px, shape);
+    closeModal(document.getElementById('featherModal'));
+  });
+
+  // Remove BG modal
+  document.getElementById('removeBgModal')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const tol = parseInt(document.getElementById('bgRemoveToleranceModal')?.value || '60', 10);
+    removeBackgroundFromActiveImage(tol);
+    closeModal(document.getElementById('removeBgModal'));
+  });
 
   window.__miniCanva = { get canvas() { return canvasState.canvas; } };
 }
