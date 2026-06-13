@@ -154,6 +154,147 @@ function parseHistorySnapshot(snapshot) {
   }
 }
 
+function buildDesignPayload() {
+  const canvas = canvasState.canvas;
+  return {
+    app: 'Mini-Canva',
+    type: 'design',
+    version: 1,
+    savedAt: new Date().toISOString(),
+    canvas: {
+      width: canvasState.baseW,
+      height: canvasState.baseH,
+      backgroundFill: canvasState.paperRect?.fill ?? null,
+      zoom: canvas?.getZoom?.() ?? 1,
+    },
+    objects: getDesignObjects(canvas).map((obj) => obj.toObject(SERIALIZE_PROPS)),
+    vignette: canvasState.vignetteRect ? canvasState.vignetteRect.toObject(SERIALIZE_PROPS) : null,
+  };
+}
+
+function downloadTextFile(filename, content, mimeType = 'application/json;charset=utf-8') {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportDesignJSON() {
+  try {
+    const payload = buildDesignPayload();
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    downloadTextFile(`diseno-${stamp}.json`, JSON.stringify(payload, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error exporting design JSON:', error);
+    alert('No se pudo guardar el diseño como JSON.');
+    return false;
+  }
+}
+
+async function loadDesignPayload(payload, { resetHistory = true } = {}) {
+  const canvas = canvasState.canvas;
+  if (!canvas || !payload || typeof payload !== 'object') return false;
+
+  const nextWidth = Number.parseInt(payload.canvas?.width, 10);
+  const nextHeight = Number.parseInt(payload.canvas?.height, 10);
+  if (!Number.isFinite(nextWidth) || !Number.isFinite(nextHeight) || nextWidth <= 0 || nextHeight <= 0) {
+    throw new Error('El JSON no tiene un tamaño de lienzo válido.');
+  }
+
+  canvasState.historyLock = true;
+  if (historyDebounceTimer) {
+    clearTimeout(historyDebounceTimer);
+    historyDebounceTimer = null;
+  }
+
+  const existing = getDesignObjects(canvas);
+  existing.forEach((obj) => canvas.remove(obj));
+  if (canvasState.vignetteRect) {
+    canvas.remove(canvasState.vignetteRect);
+    canvasState.vignetteRect = null;
+  }
+
+  canvasState.baseW = nextWidth;
+  canvasState.baseH = nextHeight;
+  canvas.setWidth(nextWidth);
+  canvas.setHeight(nextHeight);
+  addOrUpdatePaper();
+
+  const bg = payload.canvas?.backgroundFill;
+  if (bg != null) {
+    if (canvasState.paperRect) canvasState.paperRect.set({ fill: bg });
+    if (canvasState.paperShadowRect) canvasState.paperShadowRect.set({ fill: bg });
+    const bgInput = document.getElementById('inpBg');
+    if (bgInput && typeof bg === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(bg)) bgInput.value = bg;
+  }
+
+  const restoreObjects = (items) => new Promise((resolve) => {
+    const list = Array.isArray(items) ? items : [];
+    fabric.util.enlivenObjects(list, (objects) => resolve(objects || []), 'fabric');
+  });
+
+  try {
+    const restoredVignette = await restoreObjects(payload.vignette ? [payload.vignette] : []);
+    const vignette = restoredVignette[0];
+    if (vignette) {
+      vignette.selectable = false;
+      vignette.evented = false;
+      canvas.add(vignette);
+      canvasState.vignetteRect = vignette;
+    }
+
+    const restoredObjects = await restoreObjects(payload.objects);
+    restoredObjects.forEach((obj) => canvas.add(obj));
+
+    orderBackground();
+    canvas.discardActiveObject();
+    canvasState.multiSelectBuffer = [];
+    canvasState.autoCenter = true;
+    canvas.requestRenderAll();
+    updateDesignInfo();
+    updateSelInfo();
+    updateToolVisibility();
+    syncGroupButtonsFromSelection();
+    syncOpacityControlFromSelection();
+    syncFontSizeControlsFromSelection();
+    syncTextBackgroundControlsFromSelection();
+    syncTextAlignButtonsFromSelection();
+    refreshCopyButtonState();
+    refreshPasteButtonState();
+    if (resetHistory) {
+      canvasState.history = [];
+      canvasState.historyIndex = -1;
+      captureHistorySnapshot('load-design', { force: true });
+    }
+    refreshUndoButtonState();
+    refreshRedoButtonState();
+    requestAnimationFrame(() => fitToViewport(true));
+    return true;
+  } finally {
+    canvasState.historyLock = false;
+  }
+}
+
+async function importDesignJSON(file) {
+  if (!file) return false;
+  const text = await file.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch (error) {
+    throw new Error('El archivo no contiene un JSON válido.');
+  }
+  const looksLikeDesign = payload && payload.type === 'design' && payload.canvas && Array.isArray(payload.objects);
+  if (!looksLikeDesign) {
+    throw new Error('El archivo JSON no tiene el formato esperado para un diseño.');
+  }
+  return loadDesignPayload(payload, { resetHistory: true });
+}
+
 function refreshUndoButtonState() {
   const btn = document.getElementById('btnUndo');
   if (btn) btn.disabled = !canUndo();
@@ -1702,9 +1843,16 @@ function applyCrop() {
   const c = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
   const dataURL = c.toDataURL('image/png');
   const center = cropTarget.getCenterPoint();
-  const angle = cropTarget.angle || 0;
-  const dispW = cropTarget.getScaledWidth();
-  const dispH = cropTarget.getScaledHeight();
+  const originalScaleX = cropTarget.scaleX || 1;
+  const originalScaleY = cropTarget.scaleY || 1;
+  const keepProps = {
+    angle: cropTarget.angle || 0,
+    flipX: cropTarget.flipX,
+    flipY: cropTarget.flipY,
+    skewX: cropTarget.skewX,
+    skewY: cropTarget.skewY,
+    opacity: cropTarget.opacity,
+  };
   const idx = canvas.getObjects().indexOf(cropTarget);
   const src = cropTarget.__origSrc || cropTarget._originalElement?.src || cropTarget.toDataURL({ format: 'png' });
   if (!cropTarget.__origSrc && src) cropTarget.__origSrc = src;
@@ -1712,12 +1860,24 @@ function applyCrop() {
   fabric.Image.fromURL(dataURL, (img) => {
     img.__origSrc = src;
     img.__maskedSrc = dataURL;
-    img.set({ originX: 'center', originY: 'center', left: center.x, top: center.y, angle });
-    const sx = dispW / img.width;
-    const sy = dispH / img.height;
-    img.set({ scaleX: sx, scaleY: sy });
+    img.set({
+      originX: 'center',
+      originY: 'center',
+      left: center.x,
+      top: center.y,
+      angle: keepProps.angle,
+      flipX: keepProps.flipX,
+      flipY: keepProps.flipY,
+      skewX: keepProps.skewX,
+      skewY: keepProps.skewY,
+      opacity: keepProps.opacity,
+    });
+    // El recorte no debe estirarse hasta ocupar el contenedor anterior.
+    // Conservamos la escala del objeto original para que el nuevo tamaño visual
+    // dependa del área realmente recortada.
+    img.set({ scaleX: originalScaleX, scaleY: originalScaleY });
     if (idx >= 0) {
-      canvas.insertAt(img, idx, true);
+      canvas.insertAt(img, idx);
     } else {
       canvas.add(img);
     }
@@ -1820,12 +1980,23 @@ function applyFeatherMaskToActive(px = 40, shape = 'rect') {
     fabric.Image.fromURL(dataURL, (img2) => {
       img2.__origSrc = origSrc;
       img2.__maskedSrc = dataURL;
-      img2.set({ originX: 'center', originY: 'center', left: center.x, top: center.y, angle });
+      img2.set({
+        originX: 'center',
+        originY: 'center',
+        left: center.x,
+        top: center.y,
+        angle,
+        flipX: target.flipX,
+        flipY: target.flipY,
+        skewX: target.skewX,
+        skewY: target.skewY,
+        opacity: target.opacity,
+      });
       const sx = dispW / img2.width;
       const sy = dispH / img2.height;
       img2.set({ scaleX: sx, scaleY: sy });
       if (idx >= 0) {
-        canvas.insertAt(img2, idx, true);
+        canvas.insertAt(img2, idx);
       } else {
         canvas.add(img2);
       }
@@ -1937,7 +2108,7 @@ function removeBackgroundFromActiveImage(tolerance = 60) {
       const sy = dispH / img2.height;
       img2.set({ scaleX: sx, scaleY: sy });
       if (idx >= 0) {
-        canvas.insertAt(img2, idx, true);
+        canvas.insertAt(img2, idx);
       } else {
         canvas.add(img2);
       }
@@ -1974,12 +2145,23 @@ function removeFeatherMaskFromActive() {
   canvas.remove(target);
   fabric.Image.fromURL(src, (img) => {
     img.__origSrc = src;
-    img.set({ originX: 'center', originY: 'center', left: center.x, top: center.y, angle });
+    img.set({
+      originX: 'center',
+      originY: 'center',
+      left: center.x,
+      top: center.y,
+      angle,
+      flipX: target.flipX,
+      flipY: target.flipY,
+      skewX: target.skewX,
+      skewY: target.skewY,
+      opacity: target.opacity,
+    });
     const sx = dispW / img.width;
     const sy = dispH / img.height;
     img.set({ scaleX: sx, scaleY: sy });
     if (idx >= 0) {
-      canvas.insertAt(img, idx, true);
+      canvas.insertAt(img, idx);
     } else {
       canvas.add(img);
     }
@@ -2486,11 +2668,11 @@ function buildMobileDockOnce() {
   dock.innerHTML = `
     <div class="md-top">
       <span class="md-title">Panel móvil</span>
-      <button type="button" class="md-toggle" aria-expanded="true" aria-controls="mobileDockContent" aria-label="Contraer panel móvil" title="Contraer panel móvil">
+      <button type="button" class="md-toggle" aria-expanded="false" aria-controls="mobileDockContent" aria-label="Expandir panel móvil" title="Expandir panel móvil">
         <span class="md-toggle-icon" aria-hidden="true">▾</span>
       </button>
     </div>
-    <div class="md-content" id="mobileDockContent" aria-hidden="false">
+    <div class="md-content" id="mobileDockContent" aria-hidden="true" inert>
       <div class="md-zoom"></div>
       <div class="md-tabs">
         <button type="button" class="md-tab" data-tab="tools">Herramientas</button>
@@ -2509,7 +2691,7 @@ function buildMobileDockOnce() {
     setMobileDockCollapsed(next);
     requestAnimationFrame(() => fitToViewport());
   });
-  setMobileDockCollapsed(false);
+  setMobileDockCollapsed(true);
 }
 
 function switchMobileTab(which = 'tools', toggleIfActive = false) {
@@ -2540,7 +2722,6 @@ function enterMobileDock() {
   const dock = document.getElementById('mobileDock');
   if (!left || !right || !dock) return;
   buildMobileDockOnce();
-  setMobileDockCollapsed(false);
   const zoomSlot = dock.querySelector('.md-zoom');
   const hud = document.querySelector('#deskBar .hud');
   if (hud && zoomSlot) zoomSlot.appendChild(hud);
@@ -2559,8 +2740,8 @@ function enterMobileDock() {
   dock.querySelector('#md-help')?.appendChild(right);
   document.body.classList.add('mobile-docked');
   isMobileUI = true;
-  setMobileDockCollapsed(false);
   switchMobileTab('tools');
+  setMobileDockCollapsed(true);
   requestAnimationFrame(() => fitToViewport());
 }
 
@@ -2778,6 +2959,22 @@ export function setupUIHandlers() {
       });
     });
     scheduleHistorySnapshot('new-design', { force: true, immediate: true });
+  });
+
+  document.getElementById('btnSaveJson')?.addEventListener('click', exportDesignJSON);
+  document.getElementById('btnLoadJson')?.addEventListener('click', () => {
+    document.getElementById('fileJson')?.click();
+  });
+  document.getElementById('fileJson')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      await importDesignJSON(file);
+    } catch (error) {
+      console.error('Error importing design JSON:', error);
+      alert(error?.message || 'No se pudo abrir el diseño JSON.');
+    }
+    e.target.value = '';
   });
 
   document.getElementById('btnText')?.addEventListener('click', () => {

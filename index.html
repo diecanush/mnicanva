@@ -60,15 +60,20 @@
             <button id="btnNew" type="button">Nuevo diseño</button>
             <label class="chk"><input type="checkbox" id="chkGuides" checked /> Guías</label>
           </div>
+          <div class="row">
+            <button id="btnSaveJson" type="button">Guardar JSON</button>
+            <button id="btnLoadJson" type="button">Abrir JSON</button>
+          </div>
         </section>
 
         <section class="group" data-visible-for="always">
           <h3>Insertar elementos</h3>
           <input id="fileImg" type="file" accept="image/*" style="display: none;" />
+          <input id="fileJson" type="file" accept="application/json,.json" style="display: none;" />
           <div class="insert-row">
             <div id="btnText" class="insert-icon" title="Añadir texto" aria-label="Añadir texto" role="button" tabindex="0">📝</div>
             <div id="btnImg" class="insert-icon large" title="Añadir imagen" aria-label="Añadir imagen" role="button" tabindex="0">🖼️</div>
-            <div id="btnRect" class="insert-icon" title="Insertar recuadro" aria-label="Insertar recuadro" role="button" tabindex="0">□</div>
+            <div id="btnRect" class="insert-icon" title="Insertar recuadro" aria-label="Insertar recuadro" role="button" tabindex="0">🔲</div>
             <div id="btnMakeWA" class="insert-icon" title="QR WhatsApp" aria-label="Generar QR WhatsApp" role="button" tabindex="0">📱</div>
             <div id="btnMakeURL" class="insert-icon" title="QR URL" aria-label="Generar QR URL" role="button" tabindex="0">🔗</div>
           </div>
@@ -125,14 +130,14 @@
           </div>
 
           <div class="row">
-            <button id="btnText" type="button" class="insert-btn">📝</button>
+            <button id="btnTextSecondary" type="button" class="insert-btn">📝</button>
             <button id="btnApplyText" type="button">Aplicar</button>
           </div>
         </section>
 
         <section class="group" data-visible-for="none image">
           <h3>Imágenes &amp; recortes</h3>
-          <input id="fileImg" type="file" accept="image/*" />
+          <input id="fileImgSecondary" type="file" accept="image/*" />
           <div class="row">
             <button id="btnStartCrop" type="button">Recortar</button>
           </div>
@@ -169,9 +174,9 @@
 
         <section class="group" data-visible-for="none rect">
           <h3>Recuadro</h3>
-          <div class="row">
+          <!-- <div class="row">
             <button id="btnRect" type="button">Insertar recuadro</button>
-          </div>
+          </div> -->
           <div class="row">
             <label>Relleno <input id="shapeFill" type="color" value="#ffffff" /></label>
             <label>Borde <input id="shapeStrokeColor" type="color" value="#111827" /></label>
@@ -180,9 +185,9 @@
             <label>Grosor <input id="shapeStrokeWidth" type="number" step="0.5" min="0" value="2" /></label>
             <label>Radio <input id="shapeCorner" type="number" step="1" min="0" value="12" /></label>
           </div>
-          <div class="row">
+          <!-- <div class="row">
             <button id="btnApplyShape" type="button">Aplicar al seleccionado</button>
-          </div>
+          </div> -->
         </section>
 
         <section class="group" data-visible-for="selected">
@@ -394,7 +399,7 @@
     <form method="dialog">
       <h3>QR WhatsApp</h3>
       <label>Teléfono (sin +) <input id="waPhone" type="text" placeholder="5492901..." /></label>
-      <label>Mensaje <input id="waMsg" type="text" placeholder="Texto opcional..." /></label>
+      <label>Mensaje <input id="waMsgLegacy" type="text" placeholder="Texto opcional..." /></label>
       <button type="submit">Generar</button>
       <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
     </form>
@@ -411,38 +416,38 @@
   </dialog>
 
   <!-- Text modal -->
-  <dialog id="textModal">
+  <dialog id="textModalLegacy">
     <form method="dialog">
       <h3>Añadir texto</h3>
-      <label>Texto: <input id="textInput" type="text" value="Doble click para editar" required /></label>
+      <label>Texto: <input id="textInputLegacy" type="text" value="Doble click para editar" required /></label>
       <div class="modal-buttons">
         <button type="submit">Añadir</button>
-        <button type="button" onclick="textModal.close()">Cancelar</button>
+        <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
       </div>
     </form>
   </dialog>
 
   <!-- WA QR modal -->
-  <dialog id="waModal">
+  <dialog id="waModalLegacy">
     <form method="dialog">
       <h3>QR WhatsApp</h3>
-      <label>Teléfono (sin +): <input id="waPhone" type="text" placeholder="5492901..." required /></label>
+      <label>Teléfono (sin +): <input id="waPhoneLegacy" type="text" placeholder="5492901..." required /></label>
       <label>Mensaje: <input id="waMsg" type="text" placeholder="Texto opcional..." /></label>
       <div class="modal-buttons">
         <button type="submit">Generar</button>
-        <button type="button" onclick="waModal.close()">Cancelar</button>
+        <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
       </div>
     </form>
   </dialog>
 
   <!-- URL QR modal -->
-  <dialog id="urlModal">
+  <dialog id="urlModalLegacy">
     <form method="dialog">
       <h3>QR URL</h3>
-      <label>URL: <input id="inURL" type="url" placeholder="https://..." required /></label>
+      <label>URL: <input id="inURLLegacy" type="url" placeholder="https://..." required /></label>
       <div class="modal-buttons">
         <button type="submit">Generar</button>
-        <button type="button" onclick="urlModal.close()">Cancelar</button>
+        <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
       </div>
     </form>
   </dialog>
