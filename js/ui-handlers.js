@@ -104,6 +104,11 @@ const CLIPBOARD_MAX_OFFSET = 240;
 
 let historyDebounceTimer = null;
 let renderDebounceTimer = null;
+let pendingPlacement = null;
+let placementPreview = null;
+let placementStart = null;
+let placementIsDrawing = false;
+let placementPreviousState = null;
 
 function isInputLikeElement(el) {
   if (!el) return false;
@@ -131,7 +136,8 @@ function ensureHistoryState() {
 function isHelperObject(obj) {
   if (!obj) return false;
   return (
-    obj === canvasState.paperRect
+    obj.__placementPreview === true
+    || obj === canvasState.paperRect
     || obj === canvasState.paperShadowRect
     || obj === canvasState.hGuide
     || obj === canvasState.vGuide
@@ -1613,18 +1619,205 @@ function applyTextBackgroundToSelection(overrideColor, overrideIsNone) {
   scheduleHistorySnapshot('text-background');
 }
 
-function addText(text = 'Doble click para editar') {
+function getPlacementButton(type) {
+  const ids = { text: 'btnText', image: 'btnImg', rect: 'btnRect' };
+  return document.getElementById(ids[type]);
+}
+
+function setPlacementHint(type = null, message = '') {
+  const viewport = document.getElementById('viewport');
+  if (!viewport) return;
+  let hint = document.getElementById('placementHint');
+  if (!type) {
+    hint?.remove();
+    return;
+  }
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'placementHint';
+    hint.setAttribute('role', 'status');
+    viewport.appendChild(hint);
+  }
+  hint.textContent = message || 'Arrastrá sobre el lienzo para definir el marco. Esc cancela.';
+}
+
+function restoreCanvasAfterPlacement() {
+  const canvas = canvasState.canvas;
+  if (!canvas) return;
+  if (placementPreviousState) {
+    canvas.selection = placementPreviousState.selection;
+    canvas.skipTargetFind = placementPreviousState.skipTargetFind;
+    canvas.defaultCursor = placementPreviousState.defaultCursor;
+  } else {
+    canvas.selection = true;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = 'default';
+  }
+  placementPreviousState = null;
+}
+
+function clearPlacementPreview() {
+  const canvas = canvasState.canvas;
+  if (canvas && placementPreview) canvas.remove(placementPreview);
+  placementPreview = null;
+  placementStart = null;
+  placementIsDrawing = false;
+}
+
+function cancelFramePlacement({ clearPending = true } = {}) {
+  const canvas = canvasState.canvas;
+  const activeType = canvasState.placementMode;
+  clearPlacementPreview();
+  if (activeType || placementPreviousState) restoreCanvasAfterPlacement();
+  canvasState.placementMode = null;
+  if (clearPending) pendingPlacement = null;
+  document.body.classList.remove('placing-content');
+  getPlacementButton(activeType)?.classList.remove('active');
+  setPlacementHint();
+  canvas?.requestRenderAll();
+}
+
+function normalizePlacementBounds(start, end) {
+  const left = Math.max(0, Math.min(start.x, end.x));
+  const top = Math.max(0, Math.min(start.y, end.y));
+  const right = Math.min(canvasState.baseW, Math.max(start.x, end.x));
+  const bottom = Math.min(canvasState.baseH, Math.max(start.y, end.y));
+  return {
+    left,
+    top,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
+}
+
+function completeFramePlacement(bounds) {
+  const type = canvasState.placementMode;
+  pendingPlacement = { type, ...bounds };
+  cancelFramePlacement({ clearPending: false });
+
+  if (type === 'text') {
+    const input = document.getElementById('textInput');
+    if (input) input.value = '';
+    openModal(document.getElementById('textModal'));
+    requestAnimationFrame(() => input?.focus());
+    return;
+  }
+  if (type === 'image') {
+    document.getElementById('fileImg')?.click();
+    return;
+  }
+  if (type === 'rect') {
+    addRect(bounds);
+    pendingPlacement = null;
+  }
+}
+
+function startFramePlacement(type) {
+  const canvas = canvasState.canvas;
+  if (!canvas || !['text', 'image', 'rect'].includes(type)) return;
+
+  cancelFramePlacement();
+  canvasState.placementMode = type;
+  placementPreviousState = {
+    selection: canvas.selection,
+    skipTargetFind: canvas.skipTargetFind,
+    defaultCursor: canvas.defaultCursor,
+  };
+  canvas.discardActiveObject();
+  canvas.selection = false;
+  canvas.skipTargetFind = true;
+  canvas.defaultCursor = 'crosshair';
+  document.body.classList.add('placing-content');
+  getPlacementButton(type)?.classList.add('active');
+  setPlacementHint(type);
+  if (isMobileUI) setMobileDockCollapsed(true);
+  canvas.requestRenderAll();
+}
+
+function setupFramePlacement() {
+  const canvas = canvasState.canvas;
+  if (!canvas || canvas.__miniCanvaPlacementReady) return;
+  canvas.__miniCanvaPlacementReady = true;
+
+  canvas.on('mouse:down', (opt) => {
+    if (!canvasState.placementMode) return;
+    const point = canvas.getPointer(opt.e);
+    placementStart = {
+      x: Math.max(0, Math.min(canvasState.baseW, point.x)),
+      y: Math.max(0, Math.min(canvasState.baseH, point.y)),
+    };
+    placementIsDrawing = true;
+    placementPreview = new fabric.Rect({
+      left: placementStart.x,
+      top: placementStart.y,
+      originX: 'left',
+      originY: 'top',
+      width: 1,
+      height: 1,
+      fill: 'rgba(37, 99, 235, 0.12)',
+      stroke: '#2563eb',
+      strokeWidth: 2 / (canvas.getZoom() || 1),
+      strokeDashArray: [10, 6],
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+      __placementPreview: true,
+    });
+    canvas.add(placementPreview);
+    canvas.requestRenderAll();
+    opt.e?.preventDefault?.();
+  });
+
+  canvas.on('mouse:move', (opt) => {
+    if (!canvasState.placementMode || !placementIsDrawing || !placementStart || !placementPreview) return;
+    const point = canvas.getPointer(opt.e);
+    const bounds = normalizePlacementBounds(placementStart, point);
+    placementPreview.set(bounds);
+    placementPreview.setCoords();
+    canvas.requestRenderAll();
+    opt.e?.preventDefault?.();
+  });
+
+  canvas.on('mouse:up', (opt) => {
+    if (!canvasState.placementMode || !placementIsDrawing || !placementStart) return;
+    const point = canvas.getPointer(opt.e);
+    const bounds = normalizePlacementBounds(placementStart, point);
+    clearPlacementPreview();
+    const minSize = 20 / (canvas.getZoom() || 1);
+    if (bounds.width < minSize || bounds.height < minSize) {
+      setPlacementHint(canvasState.placementMode, 'El marco es muy pequeño. Arrastrá para definir un área mayor.');
+      canvas.requestRenderAll();
+      return;
+    }
+    completeFramePlacement(bounds);
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !canvasState.placementMode) return;
+    event.preventDefault();
+    cancelFramePlacement();
+  });
+}
+
+function addText(text = 'Doble click para editar', bounds = null) {
   const canvas = canvasState.canvas;
   if (!canvas) return;
   const { color: bgColor, isNone: bgNone } = getTextBackgroundControlValues();
-  const textbox = new fabric.Textbox(text, {
-    left: canvasState.baseW / 2,
-    top: canvasState.baseH / 2,
-    originX: 'center',
-    originY: 'center',
+  const frame = bounds || {
+    left: canvasState.baseW * 0.2,
+    top: canvasState.baseH * 0.45,
     width: canvasState.baseW * 0.6,
+    height: canvasState.baseH * 0.1,
+  };
+  const frameFontSize = Math.max(8, Math.min(getFontSizeFromSlider(), frame.height * 0.7));
+  const textbox = new fabric.Textbox(text, {
+    left: frame.left,
+    top: frame.top,
+    originX: 'left',
+    originY: 'top',
+    width: frame.width,
     fontFamily: document.getElementById('selFont')?.value,
-    fontSize: getFontSizeFromSlider(),
+    fontSize: frameFontSize,
     fill: document.getElementById('inpColor')?.value,
     textAlign: currentAlign(),
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
@@ -1751,7 +1944,7 @@ export function syncFontSizeControlsFromSelection() {
   if (valueEl) valueEl.textContent = `${next} px`;
 }
 
-function addImage(file) {
+function addImage(file, bounds = null) {
   const canvas = canvasState.canvas;
   if (!canvas) return;
   const reader = new FileReader();
@@ -1759,18 +1952,47 @@ function addImage(file) {
     try {
       fabric.Image.fromURL(reader.result, (img) => {
         try {
-          const maxW = canvasState.baseW * 0.9;
-          const maxH = canvasState.baseH * 0.9;
-          const s = Math.min(maxW / img.width, maxH / img.height, 1);
-          img.set({
-            left: canvasState.baseW / 2,
-            top: canvasState.baseH / 2,
-            originX: 'center',
-            originY: 'center',
-            scaleX: s,
-            scaleY: s,
-            cornerStyle: 'circle',
-          });
+          if (bounds) {
+            const targetRatio = bounds.width / bounds.height;
+            const imageRatio = img.width / img.height;
+            let cropX = 0;
+            let cropY = 0;
+            let sourceW = img.width;
+            let sourceH = img.height;
+            if (imageRatio > targetRatio) {
+              sourceW = img.height * targetRatio;
+              cropX = (img.width - sourceW) / 2;
+            } else {
+              sourceH = img.width / targetRatio;
+              cropY = (img.height - sourceH) / 2;
+            }
+            img.set({
+              left: bounds.left,
+              top: bounds.top,
+              originX: 'left',
+              originY: 'top',
+              cropX,
+              cropY,
+              width: sourceW,
+              height: sourceH,
+              scaleX: bounds.width / sourceW,
+              scaleY: bounds.height / sourceH,
+              cornerStyle: 'circle',
+            });
+          } else {
+            const maxW = canvasState.baseW * 0.9;
+            const maxH = canvasState.baseH * 0.9;
+            const s = Math.min(maxW / img.width, maxH / img.height, 1);
+            img.set({
+              left: canvasState.baseW / 2,
+              top: canvasState.baseH / 2,
+              originX: 'center',
+              originY: 'center',
+              scaleX: s,
+              scaleY: s,
+              cornerStyle: 'circle',
+            });
+          }
           if (!img.__origSrc) img.__origSrc = reader.result;
           canvas.add(img);
           canvas.setActiveObject(img);
@@ -2548,20 +2770,20 @@ async function makeQR(url) {
     });
   });
 }
-function addRect() {
+function addRect(bounds = null) {
   const canvas = canvasState.canvas;
   if (!canvas) return;
-  const w = Math.round(canvasState.baseW * 0.45);
-  const h = Math.round(canvasState.baseH * 0.28);
+  const w = bounds?.width || Math.round(canvasState.baseW * 0.45);
+  const h = bounds?.height || Math.round(canvasState.baseH * 0.28);
   const fill = document.getElementById('shapeFill')?.value || '#ffffff';
   const stroke = document.getElementById('shapeStrokeColor')?.value || '#111827';
   const sw = parseFloat(document.getElementById('shapeStrokeWidth')?.value || '2') || 0;
   const r = parseInt(document.getElementById('shapeCorner')?.value || '12', 10) || 0;
   const rect = new fabric.Rect({
-    left: canvasState.baseW / 2,
-    top: canvasState.baseH / 2,
-    originX: 'center',
-    originY: 'center',
+    left: bounds?.left ?? canvasState.baseW / 2,
+    top: bounds?.top ?? canvasState.baseH / 2,
+    originX: bounds ? 'left' : 'center',
+    originY: bounds ? 'top' : 'center',
     width: w,
     height: h,
     rx: r,
@@ -2922,6 +3144,7 @@ function initTouchMultiSelect() {
 }
 export function setupUIHandlers() {
   applyDialogFallback();
+  setupFramePlacement();
   updateToolVisibility();
   refreshCopyButtonState();
   refreshPasteButtonState();
@@ -2977,16 +3200,30 @@ export function setupUIHandlers() {
     e.target.value = '';
   });
 
-  document.getElementById('btnText')?.addEventListener('click', () => {
-    const modal = document.getElementById('textModal');
-    if (modal) openModal(modal);
+  document.getElementById('btnText')?.addEventListener('click', () => startFramePlacement('text'));
+  document.getElementById('btnTextSecondary')?.addEventListener('click', () => startFramePlacement('text'));
+  [
+    ['btnText', 'text'],
+    ['btnImg', 'image'],
+    ['btnRect', 'rect'],
+  ].forEach(([id, type]) => {
+    document.getElementById(id)?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      startFramePlacement(type);
+    });
   });
   document.getElementById('textModal')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = document.getElementById('textInput')?.value || 'Doble click para editar';
-    addText(text);
+    const bounds = pendingPlacement?.type === 'text' ? pendingPlacement : null;
+    pendingPlacement = null;
+    addText(text, bounds);
     const modal = document.getElementById('textModal');
     if (modal) closeModal(modal);
+  });
+  document.getElementById('textModal')?.addEventListener('close', () => {
+    if (pendingPlacement?.type === 'text') pendingPlacement = null;
   });
   document.getElementById('btnCopy')?.addEventListener('click', async () => {
     await copySelectionToClipboard();
@@ -3000,9 +3237,7 @@ export function setupUIHandlers() {
   document.getElementById('btnRedo')?.addEventListener('click', async () => {
     await redoHistory();
   });
-  document.getElementById('btnImg')?.addEventListener('click', () => {
-    document.getElementById('fileImg')?.click();
-  });
+  document.getElementById('btnImg')?.addEventListener('click', () => startFramePlacement('image'));
 
   document.getElementById('fileImg')?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
@@ -3011,7 +3246,9 @@ export function setupUIHandlers() {
         alert('Por favor, selecciona un archivo de imagen válido.');
         return;
       }
-      addImage(file);
+      const bounds = pendingPlacement?.type === 'image' ? pendingPlacement : null;
+      pendingPlacement = null;
+      addImage(file, bounds);
     }
     e.target.value = '';
   });
@@ -3383,7 +3620,7 @@ export function setupUIHandlers() {
     if (modal) closeModal(modal);
   });
 
-  document.getElementById('btnRect')?.addEventListener('click', addRect);
+  document.getElementById('btnRect')?.addEventListener('click', () => startFramePlacement('rect'));
   document.getElementById('btnApplyShape')?.addEventListener('click', applyShapeProps);
   ['shapeFill', 'shapeStrokeColor', 'shapeStrokeWidth', 'shapeCorner'].forEach((id) => {
     const el = document.getElementById(id);

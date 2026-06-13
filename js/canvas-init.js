@@ -11,6 +11,7 @@ export const canvasState = {
   autoCenter: true,
   handMode: false,
   spaceDown: false,
+  placementMode: null,
   multiSelectMode: false,
   multiSelectBuffer: [],
   clipboardData: null,

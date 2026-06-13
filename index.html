@@ -68,12 +68,13 @@
 
         <section class="group" data-visible-for="always">
           <h3>Insertar elementos</h3>
+          <p class="insert-help">Elegí un tipo y trazá su marco sobre el lienzo.</p>
           <input id="fileImg" type="file" accept="image/*" style="display: none;" />
           <input id="fileJson" type="file" accept="application/json,.json" style="display: none;" />
           <div class="insert-row">
-            <div id="btnText" class="insert-icon" title="Añadir texto" aria-label="Añadir texto" role="button" tabindex="0">📝</div>
-            <div id="btnImg" class="insert-icon large" title="Añadir imagen" aria-label="Añadir imagen" role="button" tabindex="0">🖼️</div>
-            <div id="btnRect" class="insert-icon" title="Insertar recuadro" aria-label="Insertar recuadro" role="button" tabindex="0">🔲</div>
+            <div id="btnText" class="insert-icon" title="Trazar marco de texto" aria-label="Trazar marco de texto" role="button" tabindex="0">📝</div>
+            <div id="btnImg" class="insert-icon large" title="Trazar marco de imagen" aria-label="Trazar marco de imagen" role="button" tabindex="0">🖼️</div>
+            <div id="btnRect" class="insert-icon" title="Trazar recuadro" aria-label="Trazar recuadro" role="button" tabindex="0">🔲</div>
             <div id="btnMakeWA" class="insert-icon" title="QR WhatsApp" aria-label="Generar QR WhatsApp" role="button" tabindex="0">📱</div>
             <div id="btnMakeURL" class="insert-icon" title="QR URL" aria-label="Generar QR URL" role="button" tabindex="0">🔗</div>
           </div>
@@ -387,9 +388,9 @@
   <!-- Text Modal -->
   <dialog id="textModal">
     <form method="dialog">
-      <h3>Añadir Texto</h3>
-      <label>Texto <input id="textInput" type="text" placeholder="Doble click para editar" /></label>
-      <button type="submit">Añadir</button>
+      <h3>Escribir texto</h3>
+      <label>Texto <input id="textInput" type="text" placeholder="Escribí el contenido" /></label>
+      <button type="submit">Insertar en el marco</button>
       <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
     </form>
   </dialog>
