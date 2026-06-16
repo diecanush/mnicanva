@@ -59,25 +59,21 @@ export function fitToViewport(scrollTop = false) {
   if (w * s > ow) tx = 0;
   if (scrollTop || h * s > oh) ty = 0;
 
-  console.log('fitToViewport start', {
-    zoom: canvas.getZoom(),
-    outerTop: rect.top,
-    headerBottom,
-    tx,
-    ty,
-  });
   canvas.setViewportTransform([s, 0, 0, s, tx, ty]);
-  console.log('transform', canvas.viewportTransform);
-  const canvasTop = canvas.upperCanvasEl.getBoundingClientRect().top;
-  const diff = headerBottom - canvasTop;
   updateZoomLabel();
   updateDesignInfo();
-  if (scrollTop && Math.abs(diff) > 1) {
-    console.log('scroll', {
-      scrollY: window.scrollY,
-      targetTop: window.scrollY + rect.top - headerBottom,
-    });
-    window.scrollBy(0, diff);
+
+  const vpt = canvas.viewportTransform;
+  if (scrollTop && vpt[5] !== 0) {
+    window.scrollBy(0, vpt[5]);
+    vpt[5] = 0;
+    canvas.setViewportTransform(vpt);
+  }
+  if (scrollTop) {
+    const canvasTop = Math.max(0, window.scrollY + rect.top - headerBottom);
+    if (Math.abs(canvasTop - window.scrollY) > 1) {
+      window.scrollTo({ top: canvasTop, left: 0 });
+    }
   }
 }
 
