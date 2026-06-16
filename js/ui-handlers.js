@@ -5,8 +5,8 @@ import {
   updateDesignInfo,
   updateSelInfo,
   isFabricEditing,
-} from './canvas-init.js?v=20260616-2';
-import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260616-2';
+} from './canvas-init.js?v=20260616-3';
+import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260616-3';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -97,6 +97,8 @@ const SERIALIZE_PROPS = [
   'fontURL',
 ];
 
+const DESIGN_SERIALIZE_PROPS = SERIALIZE_PROPS.filter((prop) => prop !== 'selectable' && prop !== 'evented');
+
 const HISTORY_LIMIT = 60;
 const HISTORY_DEBOUNCE_MS = 250;
 const CLIPBOARD_PREFIX = 'MINICANVA_CLIP:';
@@ -152,6 +154,26 @@ function getDesignObjects(canvas) {
   return canvas.getObjects().filter((obj) => !isHelperObject(obj));
 }
 
+function serializeDesignObject(obj) {
+  const data = obj.toObject(DESIGN_SERIALIZE_PROPS);
+  data.selectable = true;
+  data.evented = true;
+  return data;
+}
+
+function normalizeLoadedDesignObject(obj) {
+  if (!obj || isHelperObject(obj)) return;
+  obj.set?.({
+    selectable: true,
+    evented: true,
+  });
+  if (obj.type === 'textbox') {
+    configureTextboxFrame(obj);
+    applyTextboxControlVisibility(obj);
+  }
+  obj.setCoords?.();
+}
+
 function parseHistorySnapshot(snapshot) {
   if (!snapshot || typeof snapshot.data !== 'string') return null;
   try {
@@ -176,7 +198,7 @@ function buildDesignPayload() {
       backgroundFill: canvasState.paperRect?.fill ?? null,
       zoom: canvas?.getZoom?.() ?? 1,
     },
-    objects: getDesignObjects(canvas).map((obj) => obj.toObject(SERIALIZE_PROPS)),
+    objects: getDesignObjects(canvas).map((obj) => serializeDesignObject(obj)),
     vignette: canvasState.vignetteRect ? canvasState.vignetteRect.toObject(SERIALIZE_PROPS) : null,
   };
 }
@@ -293,7 +315,10 @@ async function loadDesignPayload(payload, { resetHistory = true } = {}) {
     }
 
     const restoredObjects = await restoreObjects(payload.objects);
-    restoredObjects.forEach((obj) => canvas.add(obj));
+    restoredObjects.forEach((obj) => {
+      normalizeLoadedDesignObject(obj);
+      canvas.add(obj);
+    });
 
     orderBackground();
     canvas.discardActiveObject();
@@ -371,7 +396,7 @@ function captureHistorySnapshot(reason = 'auto', { force = false } = {}) {
 
   const history = ensureHistoryState();
   const payload = {
-    objects: getDesignObjects(canvas).map((obj) => obj.toObject(SERIALIZE_PROPS)),
+    objects: getDesignObjects(canvas).map((obj) => serializeDesignObject(obj)),
     backgroundFill: canvasState.paperRect?.fill ?? null,
     vignette: canvasState.vignetteRect ? canvasState.vignetteRect.toObject(SERIALIZE_PROPS) : null,
   };
@@ -624,7 +649,7 @@ async function copySelectionToClipboard() {
   if (!selection.length) return false;
   const payload = {
     version: CLIPBOARD_VERSION,
-    objects: selection.map((obj) => obj.toObject(SERIALIZE_PROPS)),
+    objects: selection.map((obj) => serializeDesignObject(obj)),
   };
   setInternalClipboard(payload);
   const encoded = encodeClipboardPayload(payload);
