@@ -42,6 +42,9 @@
       <div class="panel-body">
         <section class="group" data-visible-for="always">
           <h3>Formato del lienzo</h3>
+          <label>Nombre del proyecto
+            <input id="inpProjectName" type="text" value="diseno" maxlength="80" placeholder="mi-diseno" />
+          </label>
           <label>Proporción
             <select id="selAspect">
               <option value="1:1">1:1</option>
@@ -138,7 +141,10 @@
 
         <section class="group" data-visible-for="none image">
           <h3>Imágenes &amp; recortes</h3>
-          <input id="fileImgSecondary" type="file" accept="image/*" />
+          <label>Cambiar imagen
+            <input id="fileImgSecondary" type="file" accept="image/*" />
+          </label>
+          <p class="insert-help">Reemplaza la imagen seleccionada manteniendo el marco.</p>
           <div class="row">
             <button id="btnStartCrop" type="button">Recortar</button>
           </div>
@@ -229,6 +235,31 @@
           </div>
         </section>
 
+        <section class="group" data-visible-for="selected">
+          <h3>Distribuir en hoja</h3>
+          <p class="insert-help">Reemplaza la selección por una grilla equidistante.</p>
+          <div class="row">
+            <label>Columnas
+              <input id="gridCols" type="number" min="1" step="1" value="2" />
+            </label>
+            <label>Filas
+              <input id="gridRows" type="number" min="1" step="1" value="2" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Margen (px)
+              <input id="gridMargin" type="number" min="0" step="10" value="80" />
+            </label>
+            <label>Separación (px)
+              <input id="gridGap" type="number" min="0" step="10" value="40" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="chk"><input id="gridFit" type="checkbox" checked /> Ajustar para que entre</label>
+            <button id="btnDistributeGrid" type="button">Crear grilla</button>
+          </div>
+        </section>
+
 
         <section class="group" data-visible-for="always">
           <h3>Exportar / imprimir</h3>
@@ -242,37 +273,6 @@
               </select>
             </label>
             <label class="chk"><input type="checkbox" id="chkMono" /> Blanco y negro</label>
-          </div>
-
-          <div class="subgroup">
-            <h4>Imprimir múltiple</h4>
-            <div class="row">
-              <label>Tamaño
-                <select id="selPage">
-                  <option value="a4" selected>A4</option>
-                  <option value="letter">Letter</option>
-                  <option value="legal">Legal</option>
-                </select>
-              </label>
-              <label>Margen (mm)
-                <input id="inpMargin" type="number" step="1" min="0" value="0" />
-              </label>
-            </div>
-            <div class="row">
-              <label>Ancho copia (mm)
-                <input id="inpCopyW" type="number" step="0.5" min="10" value="80" />
-              </label>
-              <label>Copias
-                <input id="inpCopies" type="number" min="1" step="1" value="6" />
-              </label>
-            </div>
-
-            <!-- Aquí se insertan los hints por JS -->
-            <!-- <div id="printHints"></div> -->
-
-            <div class="row">
-              <button id="btnPrintSheet" type="button">Imprimir múltiple (PDF)</button>
-            </div>
           </div>
 
           <div class="row">
@@ -327,6 +327,7 @@
     <div class="cropper-wrap">
       <img id="cropperImage" alt="Crop target" />
     </div>
+    <p class="cropper-help">Arrastrá la imagen para reubicarla. Usá zoom o mové los bordes del área para ajustar el recorte.</p>
     <div class="cropper-toolbar">
       <button id="cmZoomOut" type="button">−</button>
       <button id="cmZoomIn" type="button">+</button>
@@ -334,6 +335,7 @@
       <button id="cmReset" type="button">Reset</button>
       <label>Aspecto
         <select id="cropAspect">
+          <option value="frame">Marco actual</option>
           <option value="free">Libre</option>
           <option value="1">1:1</option>
           <option value="4/3">4:3</option>

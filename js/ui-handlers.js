@@ -92,6 +92,8 @@ const SERIALIZE_PROPS = [
   '__origSrc',
   '__maskedSrc',
   'splitByGrapheme',
+  'dynamicMinWidth',
+  '__frameWidth',
   'fontURL',
 ];
 
@@ -166,6 +168,7 @@ function buildDesignPayload() {
     app: 'Mini-Canva',
     type: 'design',
     version: 1,
+    name: getProjectName(),
     savedAt: new Date().toISOString(),
     canvas: {
       width: canvasState.baseW,
@@ -176,6 +179,42 @@ function buildDesignPayload() {
     objects: getDesignObjects(canvas).map((obj) => obj.toObject(SERIALIZE_PROPS)),
     vignette: canvasState.vignetteRect ? canvasState.vignetteRect.toObject(SERIALIZE_PROPS) : null,
   };
+}
+
+function normalizeProjectName(value) {
+  const normalized = `${value || ''}`
+    .trim()
+    .replace(/\.[a-z0-9]+$/i, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]+/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
+  return normalized || 'diseno';
+}
+
+function getProjectName() {
+  const input = document.getElementById('inpProjectName');
+  const next = normalizeProjectName(input?.value || canvasState.projectName);
+  canvasState.projectName = next;
+  if (input && input.value !== next) input.value = next;
+  return next;
+}
+
+function setProjectName(value) {
+  const next = normalizeProjectName(value);
+  canvasState.projectName = next;
+  const input = document.getElementById('inpProjectName');
+  if (input) input.value = next;
+  return next;
+}
+
+function buildExportFilename(extension, { includeStamp = false } = {}) {
+  const base = getProjectName();
+  if (!includeStamp) return `${base}.${extension}`;
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  return `${base}-${stamp}.${extension}`;
 }
 
 function downloadTextFile(filename, content, mimeType = 'application/json;charset=utf-8') {
@@ -191,8 +230,7 @@ function downloadTextFile(filename, content, mimeType = 'application/json;charse
 function exportDesignJSON() {
   try {
     const payload = buildDesignPayload();
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
-    downloadTextFile(`diseno-${stamp}.json`, JSON.stringify(payload, null, 2));
+    downloadTextFile(buildExportFilename('json', { includeStamp: true }), JSON.stringify(payload, null, 2));
     return true;
   } catch (error) {
     console.error('Error exporting design JSON:', error);
@@ -226,6 +264,7 @@ async function loadDesignPayload(payload, { resetHistory = true } = {}) {
 
   canvasState.baseW = nextWidth;
   canvasState.baseH = nextHeight;
+  setProjectName(payload.name || payload.projectName || canvasState.projectName);
   canvas.setWidth(nextWidth);
   canvas.setHeight(nextHeight);
   addOrUpdatePaper();
@@ -1305,6 +1344,135 @@ export function duplicateActive() {
   });
 }
 
+function getClonableSelectionObjects(canvas) {
+  if (!canvas) return [];
+  const activeObjects = typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : [];
+  if (activeObjects.length) return activeObjects.filter((obj) => !isHelperObject(obj));
+  const active = typeof canvas.getActiveObject === 'function' ? canvas.getActiveObject() : null;
+  return active && !isHelperObject(active) ? [active] : [];
+}
+
+function cloneFabricObject(obj) {
+  return new Promise((resolve, reject) => {
+    if (!obj || typeof obj.clone !== 'function') {
+      reject(new Error('Objeto no clonable.'));
+      return;
+    }
+    obj.clone((clone) => {
+      if (clone) resolve(clone);
+      else reject(new Error('No se pudo clonar la selección.'));
+    }, SERIALIZE_PROPS);
+  });
+}
+
+async function cloneSelectionAsGroup(canvas, sourceObjects) {
+  const { fabric } = window;
+  if (!canvas || !fabric || !sourceObjects.length) return null;
+  const clones = await Promise.all(sourceObjects.map((obj) => cloneFabricObject(obj)));
+  clones.forEach((clone, index) => {
+    const source = sourceObjects[index];
+    clone.set({
+      left: source.left,
+      top: source.top,
+      angle: source.angle || 0,
+      scaleX: source.scaleX || 1,
+      scaleY: source.scaleY || 1,
+      originX: source.originX || 'left',
+      originY: source.originY || 'top',
+    });
+    clone.setCoords?.();
+  });
+  if (clones.length === 1) return clones[0];
+  return new fabric.Group(clones, {
+    originX: 'center',
+    originY: 'center',
+    cornerStyle: 'circle',
+  });
+}
+
+function readGridNumber(id, fallback, { min = 0, integer = false } = {}) {
+  const raw = Number.parseFloat(document.getElementById(id)?.value || `${fallback}`);
+  let value = Number.isFinite(raw) ? raw : fallback;
+  if (integer) value = Math.round(value);
+  return Math.max(min, value);
+}
+
+async function distributeSelectionGrid() {
+  const canvas = canvasState.canvas;
+  const { fabric } = window;
+  if (!canvas || !fabric) return;
+
+  const sourceObjects = getClonableSelectionObjects(canvas);
+  if (!sourceObjects.length) {
+    alert('Seleccioná una tarjeta o un grupo de elementos primero.');
+    return;
+  }
+
+  const cols = readGridNumber('gridCols', 2, { min: 1, integer: true });
+  const rows = readGridNumber('gridRows', 2, { min: 1, integer: true });
+  const total = cols * rows;
+  if (total < 1) return;
+  if (total > 100) {
+    alert('La grilla es demasiado grande. Probá con 100 elementos o menos.');
+    return;
+  }
+
+  const margin = readGridNumber('gridMargin', 80, { min: 0 });
+  const gap = readGridNumber('gridGap', 40, { min: 0 });
+  const fit = document.getElementById('gridFit')?.checked !== false;
+
+  const sourceTemplate = await cloneSelectionAsGroup(canvas, sourceObjects);
+  if (!sourceTemplate) return;
+  sourceTemplate.setCoords?.();
+  const sourceBounds = sourceTemplate.getBoundingRect(true, true);
+  const sourceW = Math.max(1, sourceBounds.width);
+  const sourceH = Math.max(1, sourceBounds.height);
+  const availableW = Math.max(1, canvasState.baseW - margin * 2 - gap * (cols - 1));
+  const availableH = Math.max(1, canvasState.baseH - margin * 2 - gap * (rows - 1));
+  const cellW = availableW / cols;
+  const cellH = availableH / rows;
+  const scale = fit ? Math.min(cellW / sourceW, cellH / sourceH) : 1;
+
+  const added = [];
+  canvasState.historyLock = true;
+  try {
+    canvas.discardActiveObject();
+    sourceObjects.forEach((obj) => canvas.remove(obj));
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const item = await cloneSelectionAsGroup(canvas, sourceObjects);
+        if (!item) continue;
+        item.set({
+          originX: 'center',
+          originY: 'center',
+          scaleX: (item.scaleX || 1) * scale,
+          scaleY: (item.scaleY || 1) * scale,
+          left: margin + cellW / 2 + col * (cellW + gap),
+          top: margin + cellH / 2 + row * (cellH + gap),
+          cornerStyle: 'circle',
+        });
+        item.setCoords?.();
+        canvas.add(item);
+        added.push(item);
+      }
+    }
+  } finally {
+    canvasState.historyLock = false;
+  }
+
+  if (added.length > 1 && fabric.ActiveSelection) {
+    canvas.setActiveObject(new fabric.ActiveSelection(added, { canvas }));
+  } else if (added[0]) {
+    canvas.setActiveObject(added[0]);
+  }
+  canvas.requestRenderAll();
+  updateSelInfo();
+  updateToolVisibility();
+  syncGroupButtonsFromSelection();
+  scheduleHistorySnapshot('distribute-grid', { immediate: true });
+}
+
 function isActiveSelectionObject(obj) {
   const { fabric } = window;
   if (!obj) return false;
@@ -1497,6 +1665,22 @@ const TEXTBOX_CONTROL_VISIBILITY = {
 function applyTextboxControlVisibility(textbox) {
   if (!textbox || textbox.type !== 'textbox' || typeof textbox.setControlsVisibility !== 'function') return;
   textbox.setControlsVisibility({ ...TEXTBOX_CONTROL_VISIBILITY });
+}
+
+function configureTextboxFrame(textbox, width = null) {
+  if (!textbox || textbox.type !== 'textbox') return;
+  const fixedWidth = Number.isFinite(width)
+    ? width
+    : (Number.isFinite(textbox.__frameWidth) ? textbox.__frameWidth : textbox.width);
+  textbox.__frameWidth = fixedWidth;
+  textbox.set({
+    width: fixedWidth,
+    splitByGrapheme: false,
+    dynamicMinWidth: 0,
+    scaleX: 1,
+  });
+  if (typeof textbox.initDimensions === 'function') textbox.initDimensions();
+  if (typeof textbox.setCoords === 'function') textbox.setCoords();
 }
 
 function normalizeColorToHex(color, fallback = null) {
@@ -1823,7 +2007,10 @@ function addText(text = 'Doble click para editar', bounds = null) {
     stroke: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10) > 0 ? document.getElementById('inpStrokeColor')?.value : undefined,
     strokeWidth: parseInt(document.getElementById('inpStrokeWidth')?.value || '0', 10),
     backgroundColor: bgNone ? '' : bgColor,
+    splitByGrapheme: false,
+    dynamicMinWidth: 0,
   });
+  configureTextboxFrame(textbox, frame.width);
   applyTextboxControlVisibility(textbox);
   canvas.add(textbox);
   applyBackgroundColorToTextbox(textbox, { color: bgColor, isNone: bgNone });
@@ -1860,9 +2047,7 @@ function applyTextProps() {
       const { colorInput } = getTextBackgroundControls();
       if (colorInput) colorInput.dataset.lastColor = normalizeColorToHex(bgValues.color, colorInput.value || '#ffffff');
     }
-    if (obj.splitByGrapheme) {
-      obj.set('splitByGrapheme', false);
-    }
+    configureTextboxFrame(obj);
   }
   canvas.requestRenderAll();
   syncTextBackgroundControlsFromSelection();
@@ -1916,8 +2101,7 @@ function applyLiveFontSize(value) {
   if (!activeObject || activeObject.type !== 'textbox') return;
 
   activeObject.set('fontSize', normalized);
-  if (typeof activeObject.initDimensions === 'function') activeObject.initDimensions();
-  if (typeof activeObject.setCoords === 'function') activeObject.setCoords();
+  configureTextboxFrame(activeObject);
   requestAnimationFrame(() => canvas.requestRenderAll());
 }
 
@@ -1944,6 +2128,25 @@ export function syncFontSizeControlsFromSelection() {
   if (valueEl) valueEl.textContent = `${next} px`;
 }
 
+function getImageCoverCrop(img, frameWidth, frameHeight) {
+  const imageW = Math.max(1, img.width || img.getElement?.()?.naturalWidth || 1);
+  const imageH = Math.max(1, img.height || img.getElement?.()?.naturalHeight || 1);
+  const targetRatio = frameWidth / frameHeight;
+  const imageRatio = imageW / imageH;
+  let cropX = 0;
+  let cropY = 0;
+  let sourceW = imageW;
+  let sourceH = imageH;
+  if (imageRatio > targetRatio) {
+    sourceW = imageH * targetRatio;
+    cropX = (imageW - sourceW) / 2;
+  } else {
+    sourceH = imageW / targetRatio;
+    cropY = (imageH - sourceH) / 2;
+  }
+  return { cropX, cropY, sourceW, sourceH };
+}
+
 function addImage(file, bounds = null) {
   const canvas = canvasState.canvas;
   if (!canvas) return;
@@ -1953,19 +2156,7 @@ function addImage(file, bounds = null) {
       fabric.Image.fromURL(reader.result, (img) => {
         try {
           if (bounds) {
-            const targetRatio = bounds.width / bounds.height;
-            const imageRatio = img.width / img.height;
-            let cropX = 0;
-            let cropY = 0;
-            let sourceW = img.width;
-            let sourceH = img.height;
-            if (imageRatio > targetRatio) {
-              sourceW = img.height * targetRatio;
-              cropX = (img.width - sourceW) / 2;
-            } else {
-              sourceH = img.width / targetRatio;
-              cropY = (img.height - sourceH) / 2;
-            }
+            const { cropX, cropY, sourceW, sourceH } = getImageCoverCrop(img, bounds.width, bounds.height);
             img.set({
               left: bounds.left,
               top: bounds.top,
@@ -2015,10 +2206,79 @@ function addImage(file, bounds = null) {
   };
   reader.readAsDataURL(file);
 }
+
+function replaceActiveImage(file) {
+  const canvas = canvasState.canvas;
+  const target = canvas?.getActiveObject?.();
+  if (!canvas || !target || target.type !== 'image') {
+    alert('Seleccioná una imagen primero.');
+    return;
+  }
+  if (!file || !file.type?.startsWith('image/')) {
+    alert('Por favor, selecciona un archivo de imagen válido.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      fabric.Image.fromURL(reader.result, (img) => {
+        try {
+          const center = target.getCenterPoint();
+          const frameWidth = target.getScaledWidth();
+          const frameHeight = target.getScaledHeight();
+          const { cropX, cropY, sourceW, sourceH } = getImageCoverCrop(img, frameWidth, frameHeight);
+          const idx = canvas.getObjects().indexOf(target);
+          img.__origSrc = reader.result;
+          img.set({
+            originX: 'center',
+            originY: 'center',
+            left: center.x,
+            top: center.y,
+            angle: target.angle || 0,
+            cropX,
+            cropY,
+            width: sourceW,
+            height: sourceH,
+            scaleX: frameWidth / sourceW,
+            scaleY: frameHeight / sourceH,
+            opacity: target.opacity ?? 1,
+            flipX: target.flipX || false,
+            flipY: target.flipY || false,
+            cornerStyle: 'circle',
+          });
+          canvas.remove(target);
+          if (idx >= 0 && idx <= canvas.getObjects().length) canvas.insertAt(img, idx, false);
+          else canvas.add(img);
+          canvas.setActiveObject(img);
+          img.setCoords?.();
+          canvas.requestRenderAll();
+          updateSelInfo();
+          updateToolVisibility();
+          scheduleHistorySnapshot('replace-image', { immediate: true });
+        } catch (error) {
+          console.error('Error replacing image:', error);
+          alert('No se pudo cambiar la imagen seleccionada.');
+        }
+      }, { crossOrigin: 'anonymous' });
+    } catch (error) {
+      console.error('Error loading replacement image:', error);
+      alert('Error al cargar la imagen.');
+    }
+  };
+  reader.onerror = () => {
+    console.error('FileReader error');
+    alert('Error al leer el archivo de imagen.');
+  };
+  reader.readAsDataURL(file);
+}
+
 let cropper = null;
 let cropTarget = null;
+let cropFrame = null;
 
 function parseAspect(v) {
+  if (v === 'frame') return cropFrame?.aspectRatio || NaN;
   if (v === 'free') return NaN;
   if (v.includes('/')) {
     const [a, b] = v.split('/').map(Number);
@@ -2037,6 +2297,14 @@ function startCrop() {
     return;
   }
   cropTarget = target;
+  const displayWidth = target.getScaledWidth();
+  const displayHeight = target.getScaledHeight();
+  cropFrame = {
+    width: displayWidth,
+    height: displayHeight,
+    aspectRatio: displayHeight > 0 ? displayWidth / displayHeight : NaN,
+    center: target.getCenterPoint(),
+  };
   const imgEl = document.getElementById('cropperImage');
   const orig = target.__origSrc
     || target._originalElement?.src
@@ -2048,6 +2316,8 @@ function startCrop() {
     cropper.destroy();
     cropper = null;
   }
+  const aspectSelect = document.getElementById('cropAspect');
+  if (aspectSelect) aspectSelect.value = 'frame';
   cropper = new Cropper(imgEl, {
     viewMode: 1,
     background: false,
@@ -2056,6 +2326,28 @@ function startCrop() {
     responsive: true,
     dragMode: 'move',
     autoCropArea: 0.9,
+    aspectRatio: cropFrame.aspectRatio,
+    cropBoxMovable: true,
+    cropBoxResizable: true,
+    toggleDragModeOnDblclick: false,
+    ready() {
+      const imageData = cropper.getImageData();
+      const containerData = cropper.getContainerData();
+      const ratio = cropFrame?.aspectRatio;
+      if (!Number.isFinite(ratio) || !imageData || !containerData) return;
+      let width = Math.min(imageData.width, containerData.width * 0.82);
+      let height = width / ratio;
+      if (height > Math.min(imageData.height, containerData.height * 0.82)) {
+        height = Math.min(imageData.height, containerData.height * 0.82);
+        width = height * ratio;
+      }
+      cropper.setCropBoxData({
+        left: (containerData.width - width) / 2,
+        top: (containerData.height - height) / 2,
+        width,
+        height,
+      });
+    },
   });
 }
 
@@ -2064,9 +2356,10 @@ function applyCrop() {
   if (!canvas || !cropper || !cropTarget) return;
   const c = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
   const dataURL = c.toDataURL('image/png');
-  const center = cropTarget.getCenterPoint();
-  const originalScaleX = cropTarget.scaleX || 1;
-  const originalScaleY = cropTarget.scaleY || 1;
+  const center = cropFrame?.center || cropTarget.getCenterPoint();
+  const frameWidth = cropFrame?.width || cropTarget.getScaledWidth();
+  const frameHeight = cropFrame?.height || cropTarget.getScaledHeight();
+  const selectedAspect = document.getElementById('cropAspect')?.value || 'frame';
   const keepProps = {
     angle: cropTarget.angle || 0,
     flipX: cropTarget.flipX,
@@ -2094,10 +2387,21 @@ function applyCrop() {
       skewY: keepProps.skewY,
       opacity: keepProps.opacity,
     });
-    // El recorte no debe estirarse hasta ocupar el contenedor anterior.
-    // Conservamos la escala del objeto original para que el nuevo tamaño visual
-    // dependa del área realmente recortada.
-    img.set({ scaleX: originalScaleX, scaleY: originalScaleY });
+    if (selectedAspect === 'frame') {
+      img.set({
+        scaleX: frameWidth / img.width,
+        scaleY: frameHeight / img.height,
+      });
+    } else {
+      const sourceScale = Math.min(
+        frameWidth / Math.max(1, cropTarget.width || frameWidth),
+        frameHeight / Math.max(1, cropTarget.height || frameHeight),
+      );
+      img.set({
+        scaleX: sourceScale,
+        scaleY: sourceScale,
+      });
+    }
     if (idx >= 0) {
       canvas.insertAt(img, idx);
     } else {
@@ -2108,6 +2412,7 @@ function applyCrop() {
     scheduleHistorySnapshot('crop');
   }, { crossOrigin: 'anonymous' });
   cropTarget = null;
+  cropFrame = null;
   cropper.destroy();
   cropper = null;
   closeModal(document.getElementById('cropModal'));
@@ -2119,6 +2424,7 @@ function cleanupCropper() {
     cropper = null;
   }
   cropTarget = null;
+  cropFrame = null;
 }
 function applyFeatherMaskToActive(px = 40, shape = 'rect') {
   const canvas = canvasState.canvas;
@@ -2509,7 +2815,7 @@ async function exportPNG() {
     const out = isMono() ? await toGray(data) : data;
     const a = document.createElement('a');
     a.href = out;
-    a.download = 'diseño.png';
+    a.download = buildExportFilename('png');
     a.click();
   } catch (error) {
     console.error('Error exporting PNG:', error);
@@ -2542,7 +2848,7 @@ async function exportPDF() {
       compress: true,
     });
     pdf.addImage(out, 'JPEG', 0, 0, w, h, undefined, 'MEDIUM', 0.8);
-    pdf.save('diseño.pdf');
+    pdf.save(buildExportFilename('pdf'));
   } catch (error) {
     console.error('Error exporting PDF:', error);
     alert('Error al exportar PDF.');
@@ -2672,7 +2978,7 @@ async function printSheet() {
     }
     if (placed < copies) pdf.addPage(page, best.orientation);
   }
-  pdf.save('hoja_copias.pdf');
+  pdf.save(buildExportFilename('pdf'));
 }
 function alignCanvas(where) {
   const canvas = canvasState.canvas;
@@ -3160,6 +3466,10 @@ export function setupUIHandlers() {
 
   document.getElementById('selAspect')?.addEventListener('change', (e) => setAspect(e.target.value));
   document.getElementById('inpBg')?.addEventListener('input', (e) => setBg(e.target.value));
+  document.getElementById('inpProjectName')?.addEventListener('input', (e) => {
+    canvasState.projectName = normalizeProjectName(e.target.value);
+    scheduleHistorySnapshot('project-name');
+  });
   document.getElementById('btnNew')?.addEventListener('click', () => {
     const c = canvasState.canvas;
     if (!c) return;
@@ -3250,6 +3560,11 @@ export function setupUIHandlers() {
       pendingPlacement = null;
       addImage(file, bounds);
     }
+    e.target.value = '';
+  });
+  document.getElementById('fileImgSecondary')?.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) replaceActiveImage(file);
     e.target.value = '';
   });
   document.querySelectorAll('.btnAlign').forEach((btn) => {
@@ -3406,6 +3721,7 @@ export function setupUIHandlers() {
       const obj = canvasState.canvas?.getActiveObject();
       if (obj && (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox')) {
         obj.set('fontFamily', family);
+        if (obj.type === 'textbox') configureTextboxFrame(obj);
         canvasState.canvas.requestRenderAll();
         scheduleHistorySnapshot('font-family');
       }
@@ -3474,8 +3790,15 @@ export function setupUIHandlers() {
     canvas.on('object:added', (opt) => {
       const target = opt?.target;
       if (target?.type === 'textbox') {
+        configureTextboxFrame(target);
         applyTextboxControlVisibility(target);
       }
+    });
+    canvas.on('text:changed', (opt) => {
+      const target = opt?.target;
+      if (!target || target.type !== 'textbox') return;
+      configureTextboxFrame(target);
+      canvas.requestRenderAll();
     });
     const handleSelection = () => {
       syncGroupButtonsFromSelection();
@@ -3563,6 +3886,12 @@ export function setupUIHandlers() {
   document.getElementById('alignTop')?.addEventListener('click', () => alignCanvas('top'));
   document.getElementById('alignCenterV')?.addEventListener('click', () => alignCanvas('centerV'));
   document.getElementById('alignBottom')?.addEventListener('click', () => alignCanvas('bottom'));
+  document.getElementById('btnDistributeGrid')?.addEventListener('click', () => {
+    distributeSelectionGrid().catch((error) => {
+      console.error('Error distributing grid:', error);
+      alert('No se pudo distribuir la selección en grilla.');
+    });
+  });
   document.getElementById('chkGuides')?.addEventListener('change', (e) => {
     canvasState.showGuides = !!e.target.checked;
     if (!canvasState.showGuides) {
@@ -3574,15 +3903,6 @@ export function setupUIHandlers() {
 
   document.getElementById('btnPNG')?.addEventListener('click', exportPNG);
   document.getElementById('btnPDF')?.addEventListener('click', exportPDF);
-  document.getElementById('btnPrintSheet')?.addEventListener('click', printSheet);
-
-  ['inpCopyW', 'inpMargin', 'selPage', 'inpCopies'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const evt = (el.tagName === 'SELECT') ? 'change' : 'input';
-    el.addEventListener(evt, updatePrintHints);
-  });
-  updatePrintHints();
 
   document.getElementById('btnMakeWA')?.addEventListener('click', () => {
     const modal = document.getElementById('waModal');

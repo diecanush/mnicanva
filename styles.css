@@ -287,7 +287,8 @@ label.chk{ gap:6px; }
 .no-dialog #cropModal.open{ display:flex; }
 .cropper-wrap{ max-height:65vh; overflow:auto; padding:12px; }
 .cropper-wrap img{ max-width:100%; display:block; margin:0 auto; }
-.cropper-toolbar{ display:flex; gap:8px; align-items:center; padding:10px; border-top:1px solid var(--border); }
+.cropper-help{ margin:0; padding:8px 12px; color:var(--muted); font-size:12px; border-top:1px solid var(--border); }
+.cropper-toolbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; border-top:1px solid var(--border); }
 .cropper-toolbar .grow{ flex:1; }
 .cropper-toolbar button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; }
 .cropper-toolbar .primary{ background:#111827; color:#fff; border-color:#111827; }

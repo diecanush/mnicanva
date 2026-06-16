@@ -8,6 +8,7 @@ export const canvasState = {
   paperShadowRect: null,
   baseW: 1480,
   baseH: 2100,
+  projectName: 'diseno',
   autoCenter: true,
   handMode: false,
   spaceDown: false,
@@ -38,7 +39,9 @@ const FABRIC_EXTRA_PROPS = [
   '__origSrc',
   '__maskedSrc',
   'splitByGrapheme',
+  'dynamicMinWidth',
   'fontURL',
+  '__frameWidth',
 ];
 
 let fabricSerializationReady = false;
@@ -185,6 +188,7 @@ function handleTextboxScaling(opt = {}) {
     scaleX: 1,
     scaleY: 1,
   });
+  target.__frameWidth = nextWidth;
   target.initDimensions?.();
   if (anchor) {
     target.setPositionByOrigin(

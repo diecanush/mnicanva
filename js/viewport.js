@@ -135,6 +135,7 @@ export function setupPanAndPinch() {
     const shouldPan = computeShouldPan(opt.target);
     const touches = e.touches;
     if (!shouldPan) {
+      isDragging = false;
       touchDragActive = false;
       return;
     }
@@ -155,6 +156,11 @@ export function setupPanAndPinch() {
   });
 
   canvas.on('mouse:move', (opt) => {
+    if (canvasState.placementMode) {
+      isDragging = false;
+      touchDragActive = false;
+      return;
+    }
     if (!isDragging) return;
     const e = opt.e;
     if (e.touches && e.touches.length) return;
@@ -171,8 +177,10 @@ export function setupPanAndPinch() {
     if (isDragging) {
       isDragging = false;
       touchDragActive = false;
-      canvas.selection = true;
-      canvas.defaultCursor = (canvasState.handMode || canvasState.spaceDown) ? 'grab' : 'default';
+      canvas.selection = !canvasState.placementMode;
+      canvas.defaultCursor = canvasState.placementMode
+        ? 'crosshair'
+        : ((canvasState.handMode || canvasState.spaceDown) ? 'grab' : 'default');
     }
   };
 
@@ -192,6 +200,13 @@ export function setupPanAndPinch() {
   }
 
   el.addEventListener('touchstart', (e) => {
+    if (canvasState.placementMode) {
+      isDragging = false;
+      touchDragActive = false;
+      pinchActive = false;
+      e.preventDefault();
+      return;
+    }
     const touchCount = e.touches.length;
     if (touchCount === 2) {
       pinchActive = true;
@@ -230,6 +245,13 @@ export function setupPanAndPinch() {
   }, { passive: false });
 
   el.addEventListener('touchmove', (e) => {
+    if (canvasState.placementMode) {
+      isDragging = false;
+      touchDragActive = false;
+      pinchActive = false;
+      e.preventDefault();
+      return;
+    }
     const touchCount = e.touches.length;
     if (pinchActive && touchCount === 2) {
       e.preventDefault();
