@@ -68,18 +68,64 @@ label.chk{ gap:6px; }
 #viewport{
   background: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 20px 20px;
   border:1px solid var(--border); border-radius:12px; position:relative; min-height: 300px;
-  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  display:flex; align-items:flex-start; justify-content:center; overflow:hidden;
   height: 100%;
 }
 #stage{ outline:none; }
 
+/* Selected controls */
+#selectedControls{
+  display: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+}
+#selectedControls.show{
+  display: block;
+}
+.selected-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.selected-toolbar button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.opacity-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.opacity-group input {
+  width: 80px;
+}
+/* Hide selected controls on desktop, show on mobile */
+@media (min-width: 768px){
+  #selectedControls{ display: none !important; }
+}
+
 /* Zoom HUD */
 .hud button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; cursor:pointer; }
-#btnHandHUD.active{ background:#e5e7eb; }
+#btnHandHUD.active{ background:#e5e7eb !important; }
+#btnMultiHUD.active,
+#mobileDock .hud #btnMultiHUD.active{ background:#2563eb !important; color:#fff !important; border-color:#1d4ed8 !important; }
 
 /* Drawer behavior (desktop) */
 @media (min-width: 768px){
   #leftPanel, #rightPanel{ display:flex; }
+  #leftPanel:not(.open), #rightPanel:not(.open){ display:none; }
+  body.help-closed #app{ grid-template-columns: 280px 1fr; }
 }
 
 /* Mobile: columnas colapsan, dock debajo del lienzo */
@@ -95,7 +141,8 @@ label.chk{ gap:6px; }
     max-height:50dvh;
     overflow:auto;
   }
-  body.mobile-docked #mobileDock{ display:block; grid-row:3; }
+  body.mobile-docked #mobileDock{ display:flex; grid-row:3; }
+  body.collapsed #app{ grid-template-rows: auto 1fr min-content; }
   /* Antes estaba: #leftPanel, #rightPanel { display:none } */
   /* Ahora solo se ocultan cuando el JS ya los movió al dock */
   body.mobile-docked #app > #leftPanel,
@@ -130,6 +177,91 @@ label.chk{ gap:6px; }
 .fp-preview { font-size: 16px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display:block; margin-top:4px; }
 
 /* Mobile Dock */
+#mobileDock {
+  display: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  padding: 12px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#mobileDock .md-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#mobileDock .md-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobileDock .md-toggle {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#mobileDock .md-toggle-icon {
+  transition: transform 0.2s ease;
+  font-size: 18px;
+  line-height: 1;
+}
+
+#mobileDock .md-toggle[aria-expanded="false"] .md-toggle-icon {
+  transform: rotate(180deg);
+}
+
+#mobileDock .md-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#mobileDock.collapsed {
+  max-height: 72px;
+  padding-bottom: 12px;
+  overflow: hidden;
+}
+
+#mobileDock.collapsed .md-content {
+  display: none;
+}
+
+.md-zoom {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0;
+}
+.md-zoom:empty {
+  display: none;
+}
+.md-zoom .hud {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.md-zoom .hud > * {
+  flex: 0 0 auto;
+}
+.md-zoom .hud #zoomLabel {
+  min-width: 48px;
+  text-align: center;
+}
 .md-tabs { display: flex; gap: 8px; }
 .md-tabs button {
   flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer;
@@ -159,6 +291,21 @@ label.chk{ gap:6px; }
 .cropper-toolbar .grow{ flex:1; }
 .cropper-toolbar button{ padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:8px; }
 .cropper-toolbar .primary{ background:#111827; color:#fff; border-color:#111827; }
+
+/* Modals */
+dialog {
+  border: none;
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+dialog::backdrop { background: rgba(0,0,0,.5); }
+dialog h3 { margin: 0 0 12px; font-size: 18px; }
+dialog label { display: block; margin: 8px 0; }
+dialog input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+.modal-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 
 /* Dark mode */
 @media (prefers-color-scheme: dark){
@@ -430,6 +577,92 @@ button:disabled{ opacity:.6; cursor:not-allowed; }
 #rightPanel::-webkit-scrollbar-thumb{ background:#d1d5db; border-radius:10px; }
 
 
+/* Selected toolbar */
+.selected-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px;
+  align-items: center;
+  justify-content: flex-start;
+}
+.selected-toolbar button {
+  padding: 8px 10px;
+  font-size: 18px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+.selected-toolbar button:hover {
+  background: #f3f4f6;
+}
+.selected-toolbar input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.selected-toolbar input[type="number"] {
+  width: 70px;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.selected-toolbar input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+.opacity-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: #f9fafb;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.opacity-group input {
+  width: 80px;
+}
+
+/* Insert icons */
+.insert-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  gap: 4px;
+}
+.insert-icon {
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 4px;
+  padding: 1px;
+  width: 36px;
+  height: 36px;
+}
+.insert-icon:hover {
+  background: #f3f4f6;
+}
+.insert-icon.large {
+  font-size: 28px;
+  width: 36px;
+  height: 36px;
+}
+
 /* ===== Panel más cómodo y sin overflow ===== */
 :root{
   --panel-w: 340px;     /* ancho base del panel */
@@ -471,7 +704,7 @@ button:disabled{ opacity:.6; cursor:not-allowed; }
   margin-bottom: var(--gap);
 }
 @media (max-width: 380px){
-  .row{ grid-template-columns: 1fr; }
+  .row{ grid-template-columns: 1fr 1fr; }
 }
 
 /* Etiqueta arriba, control abajo, para no “comerse” el ancho */
@@ -534,5 +767,182 @@ input[type="color"]{ width:32px; height:32px; padding:0; }
   grid-column: 1 / -1;
 }
 #printHints strong{ font-weight: 700; }
+
+/* ===== Experiencia movil centrada en el lienzo ===== */
+@media (max-width: 767px){
+  html,
+  body{
+    width:100%;
+    overflow:hidden;
+    overscroll-behavior:none;
+  }
+
+  #app{
+    height:100dvh;
+    min-height:0;
+    padding:6px;
+    gap:6px;
+    grid-template-columns:minmax(0, 1fr);
+    grid-template-rows:minmax(0, 1fr) auto auto;
+  }
+
+  #viewport{
+    grid-row:1;
+    min-width:0;
+    min-height:0;
+    width:100%;
+    height:100%;
+    border-radius:10px;
+    touch-action:none;
+  }
+
+  #selectedControls{
+    grid-row:2;
+    min-width:0;
+    margin:0;
+    padding:4px;
+    border-radius:10px;
+  }
+
+  #selectedControls.show{
+    display:block;
+  }
+
+  .selected-toolbar{
+    flex-wrap:nowrap;
+    gap:6px;
+    padding:2px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+
+  .selected-toolbar::-webkit-scrollbar{
+    display:none;
+  }
+
+  .selected-toolbar button,
+  .selected-toolbar input[type="color"]{
+    flex:0 0 44px;
+    width:44px;
+    min-width:44px;
+    height:44px;
+  }
+
+  .opacity-group{
+    flex:0 0 auto;
+    min-height:44px;
+    padding:4px 8px;
+  }
+
+  body.mobile-docked #mobileDock{
+    grid-row:3;
+    display:flex;
+    width:100%;
+    min-width:0;
+    max-height:min(46dvh, 420px);
+    margin:0;
+    padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+    gap:8px;
+    overflow:hidden;
+    border-radius:12px 12px 0 0;
+    box-shadow:0 -8px 24px rgba(15, 23, 42, .12);
+  }
+
+  body.mobile-docked #mobileDock.collapsed{
+    min-height:58px;
+    max-height:calc(58px + env(safe-area-inset-bottom));
+    padding:7px 8px calc(7px + env(safe-area-inset-bottom));
+  }
+
+  #mobileDock .md-top{
+    min-height:44px;
+  }
+
+  #mobileDock .md-title{
+    font-size:15px;
+    color:var(--text);
+  }
+
+  #mobileDock .md-toggle{
+    width:44px;
+    min-width:44px;
+    height:44px;
+  }
+
+  #mobileDock .md-content{
+    min-height:0;
+    gap:8px;
+    overflow:hidden;
+  }
+
+  #mobileDock .md-tabs{
+    flex:0 0 auto;
+    margin:0;
+  }
+
+  #mobileDock .md-tab{
+    min-height:44px;
+  }
+
+  #mobileDock .md-panels{
+    min-height:0;
+    margin:0;
+    overflow:auto;
+    overscroll-behavior:contain;
+  }
+
+  #mobileDock .panel{
+    width:100%;
+    max-width:none;
+    height:auto;
+    border:0;
+    border-radius:0;
+    overflow:visible;
+  }
+
+  #mobileDock .panel-head{
+    display:none;
+  }
+
+  #mobileDock .panel-body{
+    padding:2px;
+    overflow:visible;
+  }
+
+  #mobileDock button,
+  #mobileDock select,
+  #mobileDock input:not([type="color"]):not([type="checkbox"]):not([type="range"]){
+    min-height:44px;
+  }
+
+  #mobileDock .insert-row{
+    grid-template-columns:repeat(5, minmax(44px, 1fr));
+    gap:6px;
+  }
+
+  #mobileDock .insert-icon,
+  #mobileDock .insert-icon.large{
+    width:100%;
+    min-width:44px;
+    height:48px;
+    padding:4px;
+  }
+
+  body.mobile-docked #app > #leftPanel,
+  body.mobile-docked #app > #rightPanel{
+    display:none;
+  }
+}
+
+@media (max-width: 380px){
+  #mobileDock .row,
+  #mobileDock .section-body{
+    grid-template-columns:1fr;
+  }
+
+  #mobileDock .insert-row{
+    grid-template-columns:repeat(3, minmax(44px, 1fr));
+  }
+}
 
 

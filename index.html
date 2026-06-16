@@ -21,25 +21,26 @@
       <span id="selInfo">Selección: —</span>
     </div>
     <div class="right hud">
-      <button id="btnZoomOutHUD" title="Zoom -">−</button>
-      <span id="zoomLabel">100%</span>
-      <button id="btnZoomInHUD" title="Zoom +">+</button>
-      <button id="btnZoomResetHUD" title="Zoom 100%">1:1</button>
-      <button id="btnZoomFitHUD" title="Ajustar a pantalla">Fit</button>
-      <button id="btnHandHUD" title="Mano para mover">✋</button>
+      <button id="btnZoomOutHUD" title="Zoom -" aria-label="Reducir zoom">−</button>
+      <span id="zoomLabel" aria-label="Nivel de zoom actual">100%</span>
+      <button id="btnZoomInHUD" title="Zoom +" aria-label="Aumentar zoom">+</button>
+      <button id="btnZoomResetHUD" title="Zoom 100%" aria-label="Restablecer zoom al 100%">1:1</button>
+      <button id="btnZoomFitHUD" title="Ajustar a pantalla" aria-label="Ajustar zoom para encajar en pantalla">Fit</button>
+      <button id="btnHandHUD" title="Mano para mover" aria-label="Activar modo mano para mover lienzo">✋</button>
+      <button id="btnMultiHUD" title="Seleccionar varios" aria-label="Activar selección múltiple">⬚+</button>
     </div>
   </header>
 
   <main id="app">
     <!-- Panel izquierdo (herramientas) -->
-    <aside id="leftPanel" class="panel">
+    <aside id="leftPanel" class="panel open" aria-label="Panel de herramientas">
       <div class="panel-head">
         <h2>Herramientas</h2>
-        <button id="btnCloseTools" class="close">✕</button>
+        <button id="btnCloseTools" class="close" aria-label="Cerrar panel de herramientas">✕</button>
       </div>
 
       <div class="panel-body">
-        <section class="group">
+        <section class="group" data-visible-for="always">
           <h3>Formato del lienzo</h3>
           <label>Proporción
             <select id="selAspect">
@@ -59,9 +60,39 @@
             <button id="btnNew" type="button">Nuevo diseño</button>
             <label class="chk"><input type="checkbox" id="chkGuides" checked /> Guías</label>
           </div>
+          <div class="row">
+            <button id="btnSaveJson" type="button">Guardar JSON</button>
+            <button id="btnLoadJson" type="button">Abrir JSON</button>
+          </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="always">
+          <h3>Insertar elementos</h3>
+          <input id="fileImg" type="file" accept="image/*" style="display: none;" />
+          <input id="fileJson" type="file" accept="application/json,.json" style="display: none;" />
+          <div class="insert-row">
+            <div id="btnText" class="insert-icon" title="Añadir texto" aria-label="Añadir texto" role="button" tabindex="0">📝</div>
+            <div id="btnImg" class="insert-icon large" title="Añadir imagen" aria-label="Añadir imagen" role="button" tabindex="0">🖼️</div>
+            <div id="btnRect" class="insert-icon" title="Insertar recuadro" aria-label="Insertar recuadro" role="button" tabindex="0">🔲</div>
+            <div id="btnMakeWA" class="insert-icon" title="QR WhatsApp" aria-label="Generar QR WhatsApp" role="button" tabindex="0">📱</div>
+            <div id="btnMakeURL" class="insert-icon" title="QR URL" aria-label="Generar QR URL" role="button" tabindex="0">🔗</div>
+          </div>
+        </section>
+
+        <section class="group" data-visible-for="always">
+          <h3>Edición</h3>
+          <div class="row">
+            <button id="btnUndo" type="button">Deshacer</button>
+            <button id="btnRedo" type="button">Rehacer</button>
+          </div>
+          <div class="row">
+            <button id="btnCopy" type="button">Copiar</button>
+            <button id="btnPaste" type="button">Pegar</button>
+          </div>
+        </section>
+
+
+        <section class="group" data-visible-for="none text">
           <h3>Texto</h3>
 
           <!-- Select clásico (lo escondemos, queda como espejo) -->
@@ -75,8 +106,17 @@
           <div id="fontPicker"></div>
 
           <div class="row">
-            <label>Tamaño <input id="inpSize" type="number" value="64" min="8" step="1" /></label>
             <label>Color <input id="inpColor" type="color" value="#111827" /></label>
+          </div>
+          <div class="row">
+            <label>Fondo <input id="inpTextBg" type="color" value="#ffffff" /></label>
+            <label class="chk"><input type="checkbox" id="chkTextBgNone" /> Sin relleno</label>
+          </div>
+          <div class="row">
+            <label style="flex: 1 1 auto;">Tamaño
+              <input id="sizeSlider" type="range" value="64" min="8" max="200" step="1" />
+            </label>
+            <span id="sizeValue">64 px</span>
           </div>
           <div class="row">
             <label>Borde <input id="inpStrokeColor" type="color" value="#ffffff" /></label>
@@ -90,16 +130,26 @@
           </div>
 
           <div class="row">
-            <button id="btnText" type="button">Añadir texto</button>
+            <button id="btnTextSecondary" type="button" class="insert-btn">📝</button>
             <button id="btnApplyText" type="button">Aplicar</button>
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="none image">
           <h3>Imágenes &amp; recortes</h3>
-          <input id="fileImg" type="file" accept="image/*" />
+          <input id="fileImgSecondary" type="file" accept="image/*" />
           <div class="row">
             <button id="btnStartCrop" type="button">Recortar</button>
+          </div>
+
+          <div class="row">
+            <label>Tolerancia fondo
+              <input id="bgRemoveTolerance" type="range" min="0" max="400" value="60" />
+            </label>
+            <span id="bgTolVal">60</span>
+          </div>
+          <div class="row">
+            <button id="btnRemoveBg" type="button">Quitar fondo</button>
           </div>
 
           <div class="row">
@@ -122,11 +172,11 @@
           </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="none rect">
           <h3>Recuadro</h3>
-          <div class="row">
+          <!-- <div class="row">
             <button id="btnRect" type="button">Insertar recuadro</button>
-          </div>
+          </div> -->
           <div class="row">
             <label>Relleno <input id="shapeFill" type="color" value="#ffffff" /></label>
             <label>Borde <input id="shapeStrokeColor" type="color" value="#111827" /></label>
@@ -135,12 +185,12 @@
             <label>Grosor <input id="shapeStrokeWidth" type="number" step="0.5" min="0" value="2" /></label>
             <label>Radio <input id="shapeCorner" type="number" step="1" min="0" value="12" /></label>
           </div>
-          <div class="row">
+          <!-- <div class="row">
             <button id="btnApplyShape" type="button">Aplicar al seleccionado</button>
-          </div>
+          </div> -->
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="selected">
           <h3>Capas</h3>
           <div class="row">
             <button id="btnFront">Al frente</button>
@@ -152,9 +202,19 @@
             <button id="btnDup">Duplicar</button>
             <button id="btnDel">Eliminar</button>
           </div>
+          <div class="row">
+            <button id="btnGroup">Agrupar</button>
+            <button id="btnUngroup">Desagrupar</button>
+          </div>
+          <div class="row">
+            <label>Transparencia
+              <input type="range" id="opacityControl" min="0" max="100" value="100" />
+            </label>
+            <span id="opacityValue">100%</span>
+          </div>
         </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="selected">
           <h3>Alinear en lienzo</h3>
           <div class="row">
             <button id="alignLeft">Izquierda</button>
@@ -168,22 +228,8 @@
           </div>
         </section>
 
-        <section class="group">
-          <h3>QR</h3>
-          <label>WhatsApp (tel. internacional sin +)
-            <input id="waPhone" type="text" placeholder="5492901..." />
-          </label>
-          <label>Mensaje
-            <input id="waMsg" type="text" placeholder="Texto opcional..." />
-          </label>
-          <button id="btnMakeWA" type="button">QR WhatsApp</button>
-          <label>URL
-            <input id="inURL" type="url" placeholder="https://..." />
-          </label>
-          <button id="btnMakeURL" type="button">QR URL</button>
-        </section>
 
-        <section class="group">
+        <section class="group" data-visible-for="always">
           <h3>Exportar / imprimir</h3>
           <div class="row">
             <label>Escala
@@ -237,24 +283,38 @@
     </aside>
 
     <!-- Lienzo -->
-    <section id="viewport">
-      <canvas id="stage"></canvas>
+    <section id="viewport" aria-label="Área de dibujo del lienzo">
+      <canvas id="stage" aria-label="Lienzo de dibujo"></canvas>
     </section>
+
+    <!-- Controles de objeto seleccionado -->
+    <div id="selectedControls" class="selected-controls" aria-label="Controles del objeto seleccionado">
+      <div class="selected-toolbar">
+        <button id="btnFrontSel" type="button" title="Al frente" aria-label="Traer al frente">⬆️</button>
+        <button id="btnBackSel" type="button" title="Al fondo" aria-label="Enviar al fondo">⬇️</button>
+        <div class="opacity-group">
+          <label>Transparencia <input type="range" id="opacityControlSel" min="0" max="100" value="100" /></label>
+          <span id="opacityValueSel">100%</span>
+        </div>
+      </div>
+    </div>
 
     <!-- Dock móvil: las pestañas se construyen por JS y los paneles se mueven aquí -->
     <div id="mobileDock"></div>
 
     <!-- Panel derecho (ayuda) -->
-    <aside id="rightPanel" class="panel">
+    <aside id="rightPanel" class="panel open" aria-label="Panel de ayuda">
       <div class="panel-head">
         <h2>Ayuda</h2>
-        <button id="btnCloseHelp" class="close">✕</button>
+        <button id="btnCloseHelp" class="close" aria-label="Cerrar panel de ayuda">✕</button>
       </div>
       <div class="panel-body">
         <p>Consejos rápidos:</p>
         <ul>
           <li>Espacio o botón ✋ para mover el lienzo.</li>
           <li>Ctrl/Cmd+D duplica el objeto.</li>
+          <li>Ctrl/Cmd+C copia la selección y Ctrl/Cmd+V la pega.</li>
+          <li>Ctrl/Cmd+Z deshace y Ctrl/Cmd+Shift+Z (o Ctrl/Cmd+Y) rehace.</li>
           <li>Eliminá objetos con Supr/Backspace (si no estás editando texto).</li>
         </ul>
       </div>
@@ -287,13 +347,118 @@
     </div>
   </dialog>
 
+  <!-- Border Modal -->
+  <dialog id="borderModal">
+    <form method="dialog">
+      <h3>Borde del texto</h3>
+      <label>Color <input id="borderColor" type="color" value="#000000" /></label>
+      <label>Grosor <input id="borderWidth" type="number" min="0" max="20" value="1" /></label>
+      <button type="submit">Aplicar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Feather Modal -->
+  <dialog id="featherModal">
+    <form method="dialog">
+      <h3>Aplicar Feather</h3>
+      <label>Forma
+        <select id="featherShapeModal">
+          <option value="rect">Rectangular</option>
+          <option value="circle">Circular</option>
+        </select>
+      </label>
+      <label>Píxeles <input id="featherPxModal" type="range" min="0" max="200" value="40" /></label>
+      <button type="submit">Aplicar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Remove BG Modal -->
+  <dialog id="removeBgModal">
+    <form method="dialog">
+      <h3>Quitar Fondo</h3>
+      <label>Tolerancia <input id="bgRemoveToleranceModal" type="range" min="0" max="400" value="60" /></label>
+      <button type="submit">Aplicar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Text Modal -->
+  <dialog id="textModal">
+    <form method="dialog">
+      <h3>Añadir Texto</h3>
+      <label>Texto <input id="textInput" type="text" placeholder="Doble click para editar" /></label>
+      <button type="submit">Añadir</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- WA Modal -->
+  <dialog id="waModal">
+    <form method="dialog">
+      <h3>QR WhatsApp</h3>
+      <label>Teléfono (sin +) <input id="waPhone" type="text" placeholder="5492901..." /></label>
+      <label>Mensaje <input id="waMsgLegacy" type="text" placeholder="Texto opcional..." /></label>
+      <button type="submit">Generar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- URL Modal -->
+  <dialog id="urlModal">
+    <form method="dialog">
+      <h3>QR URL</h3>
+      <label>URL <input id="inURL" type="url" placeholder="https://..." /></label>
+      <button type="submit">Generar</button>
+      <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+    </form>
+  </dialog>
+
+  <!-- Text modal -->
+  <dialog id="textModalLegacy">
+    <form method="dialog">
+      <h3>Añadir texto</h3>
+      <label>Texto: <input id="textInputLegacy" type="text" value="Doble click para editar" required /></label>
+      <div class="modal-buttons">
+        <button type="submit">Añadir</button>
+        <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- WA QR modal -->
+  <dialog id="waModalLegacy">
+    <form method="dialog">
+      <h3>QR WhatsApp</h3>
+      <label>Teléfono (sin +): <input id="waPhoneLegacy" type="text" placeholder="5492901..." required /></label>
+      <label>Mensaje: <input id="waMsg" type="text" placeholder="Texto opcional..." /></label>
+      <div class="modal-buttons">
+        <button type="submit">Generar</button>
+        <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- URL QR modal -->
+  <dialog id="urlModalLegacy">
+    <form method="dialog">
+      <h3>QR URL</h3>
+      <label>URL: <input id="inURLLegacy" type="url" placeholder="https://..." required /></label>
+      <div class="modal-buttons">
+        <button type="submit">Generar</button>
+        <button type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Libs -->
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
 
   <!-- App -->
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
   <script>
     /* Acordeón para .group usando el <h3> como gatillo */
     document.addEventListener('DOMContentLoaded', () => {
