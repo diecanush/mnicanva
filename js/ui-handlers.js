@@ -5,8 +5,8 @@ import {
   updateDesignInfo,
   updateSelInfo,
   isFabricEditing,
-} from './canvas-init.js';
-import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js';
+} from './canvas-init.js?v=20260616-2';
+import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260616-2';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -1308,7 +1308,6 @@ function setAspect(key) {
   requestAnimationFrame(() => {
     canvas.requestRenderAll();
     requestAnimationFrame(() => {
-      console.log('calling fitToViewport from setAspect');
       fitToViewport(true);
     });
   });
@@ -3299,8 +3298,7 @@ function handleResponsivePanels() {
   requestAnimationFrame(() => {
     canvas.requestRenderAll();
     requestAnimationFrame(() => {
-      console.log('calling fitToViewport from setAspect');
-      fitToViewport(true);
+      fitToViewport(false);
     });
   });
 }
@@ -3487,7 +3485,6 @@ export function setupUIHandlers() {
     requestAnimationFrame(() => {
       c.requestRenderAll();
       requestAnimationFrame(() => {
-        console.log('calling fitToViewport from setAspect');
         fitToViewport(true);
       });
     });
@@ -3987,11 +3984,19 @@ export function setupUIHandlers() {
   }
 
   if ('ResizeObserver' in window) {
-    const ro = new ResizeObserver(() => { if (canvasState.autoCenter) fitToViewport(true); });
+    let resizeFrame = 0;
+    const ro = new ResizeObserver(() => {
+      if (!canvasState.autoCenter) return;
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        fitToViewport(false);
+      });
+    });
     const viewportEl = document.getElementById('viewport');
     if (viewportEl) ro.observe(viewportEl);
   } else {
-    window.addEventListener('resize', () => { if (canvasState.autoCenter) fitToViewport(true); });
+    window.addEventListener('resize', () => { if (canvasState.autoCenter) fitToViewport(false); });
   }
 
   requestAnimationFrame(() => {

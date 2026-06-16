@@ -1,5 +1,5 @@
-import { initCanvas, updateDesignInfo } from './canvas-init.js';
-import { setupPanAndPinch, updateZoomLabel } from './viewport.js';
+import { initCanvas, updateDesignInfo } from './canvas-init.js?v=20260616-2';
+import { setupPanAndPinch, updateZoomLabel } from './viewport.js?v=20260616-2';
 import {
   setHeaderHeight,
   injectGoogleFonts,
@@ -9,9 +9,9 @@ import {
   duplicateActive,
   syncShapeControlsFromSelection,
   setupUIHandlers,
-} from './ui-handlers.js';
+} from './ui-handlers.js?v=20260616-2';
 
-window.addEventListener('DOMContentLoaded', () => {
+function startMiniCanva() {
   setHeaderHeight();
   injectGoogleFonts();
   populateFontSelect();
@@ -28,4 +28,10 @@ window.addEventListener('DOMContentLoaded', () => {
   updateZoomLabel();
 
   setupUIHandlers();
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', startMiniCanva, { once: true });
+} else {
+  startMiniCanva();
+}
