@@ -5,8 +5,8 @@ import {
   updateDesignInfo,
   updateSelInfo,
   isFabricEditing,
-} from './canvas-init.js?v=20260616-3';
-import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260616-3';
+} from './canvas-init.js?v=20260617-1';
+import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260617-1';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -167,10 +167,7 @@ function normalizeLoadedDesignObject(obj) {
     selectable: true,
     evented: true,
   });
-  if (obj.type === 'textbox') {
-    configureTextboxFrame(obj);
-    applyTextboxControlVisibility(obj);
-  }
+  normalizeTextboxTransformsInObject(obj);
   obj.setCoords?.();
 }
 
@@ -1588,6 +1585,18 @@ export function ungroupActiveObject() {
     }
   }
 
+  const ungroupedObjects = typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : [];
+  ungroupedObjects.forEach((obj) => {
+    obj.set?.({
+      selectable: true,
+      evented: true,
+    });
+    normalizeTextboxTransformsInObject(obj);
+    obj.setCoords?.();
+  });
+  const activeSelection = typeof canvas.getActiveObject === 'function' ? canvas.getActiveObject() : null;
+  activeSelection?.setCoords?.();
+
   canvas.requestRenderAll();
   updateSelInfo();
   if (canvasState.multiSelectMode) {
@@ -1705,6 +1714,39 @@ function configureTextboxFrame(textbox, width = null) {
   });
   if (typeof textbox.initDimensions === 'function') textbox.initDimensions();
   if (typeof textbox.setCoords === 'function') textbox.setCoords();
+}
+
+function normalizeTextboxTransform(textbox) {
+  if (!textbox || textbox.type !== 'textbox') return;
+  const scaleX = Number.isFinite(textbox.scaleX) ? textbox.scaleX : 1;
+  const scaleY = Number.isFinite(textbox.scaleY) ? textbox.scaleY : 1;
+  const baseWidth = Number.isFinite(textbox.__frameWidth) ? textbox.__frameWidth : textbox.width;
+  const baseFontSize = Number.isFinite(textbox.fontSize) ? textbox.fontSize : 16;
+  const nextWidth = Math.max(1, baseWidth * scaleX);
+  const nextFontSize = Math.max(1, baseFontSize * scaleY);
+
+  textbox.__frameWidth = nextWidth;
+  textbox.set({
+    width: nextWidth,
+    fontSize: nextFontSize,
+    scaleX: 1,
+    scaleY: 1,
+    selectable: true,
+    evented: true,
+    splitByGrapheme: false,
+    dynamicMinWidth: 0,
+  });
+  applyTextboxControlVisibility(textbox);
+  textbox.initDimensions?.();
+  textbox.setCoords?.();
+}
+
+function normalizeTextboxTransformsInObject(obj) {
+  if (!obj) return;
+  if (obj.type === 'textbox') normalizeTextboxTransform(obj);
+  if (Array.isArray(obj._objects)) {
+    obj._objects.forEach((child) => normalizeTextboxTransformsInObject(child));
+  }
 }
 
 function normalizeColorToHex(color, fallback = null) {
@@ -2071,7 +2113,7 @@ function applyTextProps() {
       const { colorInput } = getTextBackgroundControls();
       if (colorInput) colorInput.dataset.lastColor = normalizeColorToHex(bgValues.color, colorInput.value || '#ffffff');
     }
-    configureTextboxFrame(obj);
+    normalizeTextboxTransform(obj);
   }
   canvas.requestRenderAll();
   syncTextBackgroundControlsFromSelection();
@@ -2124,7 +2166,10 @@ function applyLiveFontSize(value) {
   const activeObject = canvas.getActiveObject ? canvas.getActiveObject() : null;
   if (!activeObject || activeObject.type !== 'textbox') return;
 
-  activeObject.set('fontSize', normalized);
+  activeObject.set({
+    fontSize: normalized,
+    scaleY: 1,
+  });
   configureTextboxFrame(activeObject);
   requestAnimationFrame(() => canvas.requestRenderAll());
 }
@@ -3812,14 +3857,13 @@ export function setupUIHandlers() {
     canvas.on('object:added', (opt) => {
       const target = opt?.target;
       if (target?.type === 'textbox') {
-        configureTextboxFrame(target);
-        applyTextboxControlVisibility(target);
+        normalizeTextboxTransform(target);
       }
     });
     canvas.on('text:changed', (opt) => {
       const target = opt?.target;
       if (!target || target.type !== 'textbox') return;
-      configureTextboxFrame(target);
+      normalizeTextboxTransform(target);
       canvas.requestRenderAll();
     });
     const handleSelection = () => {

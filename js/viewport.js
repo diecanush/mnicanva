@@ -1,4 +1,4 @@
-import { canvasState, updateDesignInfo, isFabricEditing } from './canvas-init.js?v=20260616-3';
+import { canvasState, updateDesignInfo, isFabricEditing } from './canvas-init.js?v=20260617-1';
 
 const MIN_Z = 0.2;
 const MAX_Z = 8;
