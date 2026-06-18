@@ -5,8 +5,8 @@ import {
   updateDesignInfo,
   updateSelInfo,
   isFabricEditing,
-} from './canvas-init.js?v=20260617-1';
-import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260617-1';
+} from './canvas-init.js?v=20260617-2';
+import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260617-2';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -1418,6 +1418,39 @@ function readGridNumber(id, fallback, { min = 0, integer = false } = {}) {
   return Math.max(min, value);
 }
 
+function bakeScaleIntoGridItem(obj, scaleX, scaleY = scaleX) {
+  if (!obj || !Number.isFinite(scaleX) || !Number.isFinite(scaleY)) return;
+
+  if (Array.isArray(obj._objects) && obj._objects.length) {
+    obj._objects.forEach((child) => {
+      child.set({
+        left: (child.left || 0) * scaleX,
+        top: (child.top || 0) * scaleY,
+      });
+      bakeScaleIntoGridItem(child, scaleX, scaleY);
+    });
+    obj.set({
+      width: Math.max(1, (obj.width || 1) * scaleX),
+      height: Math.max(1, (obj.height || 1) * scaleY),
+      scaleX: 1,
+      scaleY: 1,
+    });
+    obj.dirty = true;
+    obj.setCoords?.();
+    return;
+  }
+
+  obj.set({
+    scaleX: (obj.scaleX || 1) * scaleX,
+    scaleY: (obj.scaleY || 1) * scaleY,
+  });
+  if (obj.type === 'textbox') {
+    normalizeTextboxTransform(obj);
+  } else {
+    obj.setCoords?.();
+  }
+}
+
 async function distributeSelectionGrid() {
   const canvas = canvasState.canvas;
   const { fabric } = window;
@@ -1464,11 +1497,14 @@ async function distributeSelectionGrid() {
       for (let col = 0; col < cols; col += 1) {
         const item = await cloneSelectionAsGroup(canvas, sourceObjects);
         if (!item) continue;
+        if (scale !== 1) {
+          bakeScaleIntoGridItem(item, scale);
+        } else {
+          normalizeTextboxTransformsInObject(item);
+        }
         item.set({
           originX: 'center',
           originY: 'center',
-          scaleX: (item.scaleX || 1) * scale,
-          scaleY: (item.scaleY || 1) * scale,
           left: margin + cellW / 2 + col * (cellW + gap),
           top: margin + cellH / 2 + row * (cellH + gap),
           cornerStyle: 'circle',
