@@ -5,8 +5,8 @@ import {
   updateDesignInfo,
   updateSelInfo,
   isFabricEditing,
-} from './canvas-init.js?v=20260617-2';
-import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260617-2';
+} from './canvas-init.js?v=20260617-3';
+import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260617-3';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -100,7 +100,12 @@ const SERIALIZE_PROPS = [
 const DESIGN_SERIALIZE_PROPS = SERIALIZE_PROPS.filter((prop) => prop !== 'selectable' && prop !== 'evented');
 
 const HISTORY_LIMIT = 60;
+const HISTORY_MAX_BYTES = 24000000;
 const HISTORY_DEBOUNCE_MS = 250;
+const IMAGE_INSERT_RESOLUTION_MULTIPLIER = 2;
+const IMAGE_INSERT_MAX_EDGE = 2600;
+const IMAGE_INSERT_MAX_PIXELS = 4200000;
+const IMAGE_INSERT_JPEG_QUALITY = 0.88;
 const CLIPBOARD_PREFIX = 'MINICANVA_CLIP:';
 const CLIPBOARD_VERSION = 1;
 const CLIPBOARD_BASE_OFFSET = 24;
@@ -405,10 +410,15 @@ function captureHistorySnapshot(reason = 'auto', { force = false } = {}) {
   if (canvasState.historyIndex < history.length - 1) {
     history.splice(canvasState.historyIndex + 1);
   }
-  history.push({ data: serialized });
+  history.push({ data: serialized, size: serialized.length });
   if (history.length > HISTORY_LIMIT) {
     const overflow = history.length - HISTORY_LIMIT;
     history.splice(0, overflow);
+  }
+  let historyBytes = history.reduce((sum, entry) => sum + (entry.size || entry.data?.length || 0), 0);
+  while (history.length > 1 && historyBytes > HISTORY_MAX_BYTES) {
+    const [removed] = history.splice(0, 1);
+    historyBytes -= removed?.size || removed?.data?.length || 0;
   }
   canvasState.historyIndex = history.length - 1;
   canvasState.history = history;
@@ -2252,13 +2262,92 @@ function getImageCoverCrop(img, frameWidth, frameHeight) {
   return { cropX, cropY, sourceW, sourceH };
 }
 
+function getImageInsertTarget(bounds = null) {
+  const rawW = bounds ? bounds.width : canvasState.baseW * 0.9;
+  const rawH = bounds ? bounds.height : canvasState.baseH * 0.9;
+  return {
+    width: Math.max(1, rawW * IMAGE_INSERT_RESOLUTION_MULTIPLIER),
+    height: Math.max(1, rawH * IMAGE_INSERT_RESOLUTION_MULTIPLIER),
+  };
+}
+
+function constrainImageDimensions(sourceW, sourceH, targetW, targetH) {
+  const coverScale = Math.min(Math.max(targetW / sourceW, targetH / sourceH), 1);
+  const edgeScale = Math.min(IMAGE_INSERT_MAX_EDGE / sourceW, IMAGE_INSERT_MAX_EDGE / sourceH, 1);
+  const pixelScale = Math.min(Math.sqrt(IMAGE_INSERT_MAX_PIXELS / (sourceW * sourceH)), 1);
+  const scale = Math.min(coverScale, edgeScale, pixelScale);
+  return {
+    width: Math.max(1, Math.round(sourceW * scale)),
+    height: Math.max(1, Math.round(sourceH * scale)),
+    scaled: scale < 0.999,
+  };
+}
+
+function shouldPreserveImageAlpha(file) {
+  return file?.type === 'image/png' || file?.type === 'image/webp';
+}
+
+function downsampleImageFile(file, target = {}) {
+  if (!file) return Promise.reject(new Error('No image file provided.'));
+  if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ dataUrl: reader.result, wasDownsampled: false });
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const sourceW = img.naturalWidth || img.width;
+        const sourceH = img.naturalHeight || img.height;
+        const maxW = Math.max(1, target.width || sourceW);
+        const maxH = Math.max(1, target.height || sourceH);
+        const next = constrainImageDimensions(sourceW, sourceH, maxW, maxH);
+        if (!next.scaled) {
+          URL.revokeObjectURL(url);
+          const reader = new FileReader();
+          reader.onload = () => resolve({ dataUrl: reader.result, wasDownsampled: false });
+          reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        const canvasEl = document.createElement('canvas');
+        canvasEl.width = next.width;
+        canvasEl.height = next.height;
+        const ctx = canvasEl.getContext('2d', { alpha: shouldPreserveImageAlpha(file) });
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, next.width, next.height);
+        URL.revokeObjectURL(url);
+        const type = shouldPreserveImageAlpha(file) ? file.type : 'image/jpeg';
+        const dataUrl = canvasEl.toDataURL(type, IMAGE_INSERT_JPEG_QUALITY);
+        resolve({ dataUrl, wasDownsampled: true });
+      } catch (error) {
+        URL.revokeObjectURL(url);
+        reject(error);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No se pudo cargar la imagen.'));
+    };
+    img.src = url;
+  });
+}
+
 function addImage(file, bounds = null) {
   const canvas = canvasState.canvas;
   if (!canvas) return;
-  const reader = new FileReader();
-  reader.onload = () => {
+  downsampleImageFile(file, getImageInsertTarget(bounds))
+    .then(({ dataUrl }) => {
     try {
-      fabric.Image.fromURL(reader.result, (img) => {
+      fabric.Image.fromURL(dataUrl, (img) => {
         try {
           if (bounds) {
             const { cropX, cropY, sourceW, sourceH } = getImageCoverCrop(img, bounds.width, bounds.height);
@@ -2289,7 +2378,7 @@ function addImage(file, bounds = null) {
               cornerStyle: 'circle',
             });
           }
-          if (!img.__origSrc) img.__origSrc = reader.result;
+          if (!img.__origSrc) img.__origSrc = dataUrl;
           canvas.add(img);
           canvas.setActiveObject(img);
           canvas.requestRenderAll();
@@ -2304,12 +2393,11 @@ function addImage(file, bounds = null) {
       console.error('Error loading image:', error);
       alert('Error al cargar la imagen.');
     }
-  };
-  reader.onerror = () => {
-    console.error('FileReader error');
-    alert('Error al leer el archivo de imagen.');
-  };
-  reader.readAsDataURL(file);
+    })
+    .catch((error) => {
+      console.error('FileReader error', error);
+      alert('Error al leer el archivo de imagen.');
+    });
 }
 
 function replaceActiveImage(file) {
@@ -2324,17 +2412,17 @@ function replaceActiveImage(file) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = () => {
+  const frameWidth = target.getScaledWidth();
+  const frameHeight = target.getScaledHeight();
+  downsampleImageFile(file, getImageInsertTarget({ width: frameWidth, height: frameHeight }))
+    .then(({ dataUrl }) => {
     try {
-      fabric.Image.fromURL(reader.result, (img) => {
+      fabric.Image.fromURL(dataUrl, (img) => {
         try {
           const center = target.getCenterPoint();
-          const frameWidth = target.getScaledWidth();
-          const frameHeight = target.getScaledHeight();
           const { cropX, cropY, sourceW, sourceH } = getImageCoverCrop(img, frameWidth, frameHeight);
           const idx = canvas.getObjects().indexOf(target);
-          img.__origSrc = reader.result;
+          img.__origSrc = dataUrl;
           img.set({
             originX: 'center',
             originY: 'center',
@@ -2370,12 +2458,11 @@ function replaceActiveImage(file) {
       console.error('Error loading replacement image:', error);
       alert('Error al cargar la imagen.');
     }
-  };
-  reader.onerror = () => {
-    console.error('FileReader error');
-    alert('Error al leer el archivo de imagen.');
-  };
-  reader.readAsDataURL(file);
+    })
+    .catch((error) => {
+      console.error('FileReader error', error);
+      alert('Error al leer el archivo de imagen.');
+    });
 }
 
 let cropper = null;
