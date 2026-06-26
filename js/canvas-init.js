@@ -45,6 +45,7 @@ const FABRIC_EXTRA_PROPS = [
 ];
 
 let fabricSerializationReady = false;
+const PX_PER_MM = 10;
 
 function ensureFabricSerializationProps() {
   if (fabricSerializationReady) return;
@@ -161,11 +162,31 @@ export function updateSelInfo() {
     return;
   }
 
-  const w = Math.round(active.getScaledWidth ? active.getScaledWidth() : active.width * (active.scaleX || 1));
-  const h = Math.round(active.getScaledHeight ? active.getScaledHeight() : active.height * (active.scaleY || 1));
+  const formatMm = (px) => {
+    const mm = px / PX_PER_MM;
+    return mm >= 10 ? `${Math.round(mm)}` : `${Number(mm.toFixed(1))}`;
+  };
+  const getSizePx = (obj) => ({
+    w: Math.round(obj.getScaledWidth ? obj.getScaledWidth() : obj.width * (obj.scaleX || 1)),
+    h: Math.round(obj.getScaledHeight ? obj.getScaledHeight() : obj.height * (obj.scaleY || 1)),
+  });
+  const formatSizeMm = (obj) => {
+    const size = getSizePx(obj);
+    return `${formatMm(size.w)}×${formatMm(size.h)} mm`;
+  };
+
+  const { w, h } = getSizePx(active);
   const pctW = Math.round((w / canvasState.baseW) * 100);
   const pctH = Math.round((h / canvasState.baseH) * 100);
-  infoEl.textContent = `Selección: ${w}×${h}px (${pctW}%×${pctH}%)`;
+  const activeObjects = typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : [];
+  const boxMm = `${formatMm(w)}×${formatMm(h)} mm`;
+  if (activeObjects.length > 1) {
+    const shown = activeObjects.slice(0, 4).map((obj, index) => `${index + 1}: ${formatSizeMm(obj)}`);
+    const more = activeObjects.length > shown.length ? ` · +${activeObjects.length - shown.length}` : '';
+    infoEl.textContent = `Selección: ${activeObjects.length} objetos · caja ${w}×${h}px / ${boxMm} (${pctW}%×${pctH}%) · ${shown.join(' · ')}${more}`;
+    return;
+  }
+  infoEl.textContent = `Selección: ${w}×${h}px / ${boxMm} (${pctW}%×${pctH}%)`;
 }
 
 function handleTextboxScaling(opt = {}) {

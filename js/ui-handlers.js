@@ -5,8 +5,8 @@ import {
   updateDesignInfo,
   updateSelInfo,
   isFabricEditing,
-} from './canvas-init.js?v=20260617-3';
-import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260617-3';
+} from './canvas-init.js?v=20260626-1';
+import { fitToViewport, zoomTo, updateZoomLabel } from './viewport.js?v=20260626-1';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -1461,6 +1461,31 @@ function bakeScaleIntoGridItem(obj, scaleX, scaleY = scaleX) {
   }
 }
 
+function addGridItemUngrouped(canvas, item) {
+  if (!canvas || !item) return [];
+  canvas.add(item);
+  if (!isGroupObject(item) || typeof item.toActiveSelection !== 'function') {
+    item.setCoords?.();
+    return [item];
+  }
+
+  canvas.setActiveObject(item);
+  const selection = item.toActiveSelection();
+  const objects = selection?.getObjects?.()
+    || (typeof canvas.getActiveObjects === 'function' ? canvas.getActiveObjects() : []);
+
+  objects.forEach((obj) => {
+    obj.set?.({
+      selectable: true,
+      evented: true,
+    });
+    normalizeTextboxTransformsInObject(obj);
+    obj.setCoords?.();
+  });
+  canvas.discardActiveObject();
+  return objects;
+}
+
 async function distributeSelectionGrid() {
   const canvas = canvasState.canvas;
   const { fabric } = window;
@@ -1520,8 +1545,7 @@ async function distributeSelectionGrid() {
           cornerStyle: 'circle',
         });
         item.setCoords?.();
-        canvas.add(item);
-        added.push(item);
+        added.push(...addGridItemUngrouped(canvas, item));
       }
     }
   } finally {

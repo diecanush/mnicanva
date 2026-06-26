@@ -1,5 +1,5 @@
-import { initCanvas, updateDesignInfo } from './canvas-init.js?v=20260617-3';
-import { setupPanAndPinch, updateZoomLabel } from './viewport.js?v=20260617-3';
+import { initCanvas, updateDesignInfo } from './canvas-init.js?v=20260626-1';
+import { setupPanAndPinch, updateZoomLabel } from './viewport.js?v=20260626-1';
 import {
   setHeaderHeight,
   injectGoogleFonts,
@@ -9,7 +9,7 @@ import {
   duplicateActive,
   syncShapeControlsFromSelection,
   setupUIHandlers,
-} from './ui-handlers.js?v=20260617-3';
+} from './ui-handlers.js?v=20260626-1';
 
 function startMiniCanva() {
   setHeaderHeight();
